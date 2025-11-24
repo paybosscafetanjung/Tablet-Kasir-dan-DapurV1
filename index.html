@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal PayBoss Staf - Payboss Cafe</title>
+    <style>
+        body {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #8B4513 0%, #D2B48C 100%);
+            min-height: 100vh;
+        }
+        .hidden { display: none !important; }
+
+        /* Login Page */
+        #login-page {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .login-container h1 {
+            color: #3E2723;
+            margin-bottom: 20px;
+        }
+        .login-container .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .login-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .login-container input, .login-container select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        .login-container button {
+            width: 100%;
+            padding: 15px;
+            border-radius: 8px;
+            border: none;
+            background: #8B4513;
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        .login-container button:hover {
+            background: #A0522D;
+        }
+        #login-error {
+            color: #D32F2F;
+            margin-top: 15px;
+            font-weight: 500;
+        }
+        
+        /* Toggle Login Mode */
+        .login-mode-switch {
+            margin-bottom: 20px;
+            display: flex;
+            background: #f0f0f0;
+            border-radius: 8px;
+            padding: 4px;
+        }
+        .mode-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 600;
+            color: #666;
+        }
+        .mode-btn.active {
+            background: white;
+            color: #8B4513;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* App Styles */
+        html { height: 100%; }
+        .nav-bar {
+            background: rgba(62, 39, 35, 0.95); padding: 15px 20px; display: flex;
+            justify-content: space-between; align-items: center; position: sticky;
+            top: 0; z-index: 1000; backdrop-filter: blur(10px);
+        }
+        .nav-brand { color: #D2B48C; font-size: 1.5rem; font-weight: bold; text-decoration: none; }
+        .nav-links { display: flex; gap: 20px; align-items: center; }
+        .nav-link, #logout-btn {
+            color: #D2B48C; text-decoration: none; padding: 8px 16px; border-radius: 6px;
+            transition: all 0.3s ease; font-weight: 500; cursor: pointer;
+        }
+        .nav-link:hover, .nav-link.active, #logout-btn:hover { background: #8B4513; color: white; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .page {
+            display: none; background: rgba(255, 255, 255, 0.95); border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden; margin-bottom: 20px;
+        }
+        .page.active { display: block; }
+        .page-header {
+            background: linear-gradient(135deg, #3E2723 0%, #5D4037 100%); color: white;
+            padding: 30px; text-align: center;
+        }
+        .page-header h1 { margin: 0 0 10px 0; font-size: 2.5rem; font-weight: bold; }
+        .page-header p { margin: 0; opacity: 0.9; font-size: 1.1rem; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; padding: 25px; }
+        .stat-card {
+            background: white; border-radius: 15px; padding: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center; transition: transform 0.3s ease; position: relative; overflow: hidden;
+        }
+        .stat-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+            background: linear-gradient(90deg, #8B4513, #D2B48C);
+        }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-icon { font-size: 3rem; margin-bottom: 15px; display: block; }
+        .stat-value { font-size: 2.5rem; font-weight: bold; color: #3E2723; margin-bottom: 8px; }
+        .stat-label { color: #666; font-size: 1.1rem; margin-bottom: 10px; }
+        .order-list { background: white; border-radius: 15px; padding: 25px; margin: 0 25px 25px 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .order-item { background: #f8f9fa; border-radius: 10px; padding: 20px; margin-bottom: 15px; border-left: 4px solid #8B4513; }
+        .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
+        .order-id { font-weight: bold; font-size: 1.1rem; color: #3E2723; }
+        .order-status { padding: 6px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-preparing { background: #cce5ff; color: #004085; }
+        .status-ready { background: #d4edda; color: #155724; }
+        .order-details { font-size: 0.95rem; color: #666; line-height: 1.5; }
+        .action-btn {
+            background: #8B4513; color: white; border: none; padding: 8px 16px;
+            border-radius: 6px; cursor: pointer; font-size: 0.9rem; margin: 5px;
+            transition: background 0.3s ease;
+        }
+        .action-btn:hover { background: #A0522D; }
+        .action-btn.success { background: #28a745; }
+        .action-btn.success:hover { background: #218838; }
+        
+        .action-btn.print {
+            background-color: #007bff;
+        }
+        .action-btn.print:hover {
+            background-color: #0056b3;
+        }
+        .action-btn.danger {
+            background-color: #dc3545;
+        }
+        .action-btn.danger:hover {
+            background-color: #c82333;
+        }
+
+        .notification {
+            position: fixed; top: 20px; right: 20px; background: #8B4513; color: white;
+            padding: 15px 20px; border-radius: 8px; z-index: 2000; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            font-weight: bold; transform: translateX(calc(100% + 30px)); transition: transform 0.4s ease-in-out;
+        }
+        .notification.show { transform: translateX(0); }
+        .report-box { background: #fff; padding: 25px; border-radius: 15px; margin: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .report-box h3 { margin-top: 0; }
+        .report-controls { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .report-controls input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        .report-controls button { padding: 12px 20px; }
+
+        .menu-item-manage {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        .menu-item-info {
+            font-weight: bold;
+            color: #3E2723;
+        }
+        .menu-item-info span {
+            font-weight: normal;
+            color: #666;
+            font-size: 0.9rem;
+            display: block;
+        }
+        .toggle-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s ease;
+            width: 110px;
+            text-align: center;
+        }
+        .toggle-btn.available {
+            background: #28a745;
+            color: white;
+        }
+        .toggle-btn.unavailable {
+            background: #dc3545;
+            color: white;
+        }
+        .toggle-btn:hover {
+            opacity: 0.8;
+        }
+        .menu-category-header {
+            border-bottom: 2px solid #D2B48C;
+            padding-bottom: 5px;
+        }
+
+        .order-item.voided {
+            border-left-color: #dc3545;
+            background-color: #fff6f6;
+        }
+        .void-reason {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #c82333;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #ddd;
+        }
+        .void-reason small {
+            color: #666;
+            font-weight: normal;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 450px;
+        }
+        .modal-content h2 {
+            margin-top: 0;
+            color: #3E2723;
+        }
+        .modal-content .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .modal-content label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .modal-content textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 1rem;
+            resize: vertical;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        @media (max-width: 768px) {
+            .login-container { padding: 25px; }
+            .nav-bar { flex-direction: column; gap: 10px; }
+            .nav-links { justify-content: center; flex-wrap: wrap; gap: 5px; }
+            .container { padding: 10px; }
+            .dashboard-grid, .order-list { padding: 15px; margin: 0 10px 15px 10px; }
+            .page-header h1 { font-size: 2rem; }
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .order-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .report-controls { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-page">
+        <div class="login-container">
+            <h1>☕ Portal Staf</h1>
+            
+            <div class="login-mode-switch">
+                <button type="button" class="mode-btn active" data-mode="staff">Login Staf</button>
+                <button type="button" class="mode-btn" data-mode="manager">Login Manager</button>
+            </div>
+
+            <form id="login-form">
+                <div id="staff-login-section">
+                    <div class="form-group">
+                        <label for="staff-pin">PIN Akses</label>
+                        <input type="tel" id="staff-pin" placeholder="Contoh: 1234" maxlength="6" style="text-align:center; letter-spacing: 5px; font-size: 1.2rem;">
+                    </div>
+                </div>
+
+                <div id="manager-login-section" class="hidden">
+                    <div class="form-group">
+                        <label for="email">Email Manager</label>
+                        <input type="email" id="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password">
+                    </div>
+                </div>
+
+                <button type="submit" id="login-submit-btn">Masuk</button>
+                <p id="login-error" class="hidden"></p>
+            </form>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden">
+        <nav class="nav-bar">
+            <a href="#" class="nav-brand">☕ Portal Staf Payboss</a>
+            <div class="nav-links">
+                <a href="#" class="nav-link active" data-page="cashier">💰 Kasir</a>
+                <a href="#" class="nav-link" data-page="kitchen">👨‍🍳 Dapur</a>
+                <a href="#" class="nav-link" data-page="menu">🍽️ Kelola Menu</a>
+                <a href="#" class="nav-link" data-page="manager">📊 Manager</a>
+                <a href="#" id="logout-btn">Logout</a>
+            </div>
+        </nav>
+
+        <div class="container">
+            <div id="cashier-page" class="page active">
+                <div class="page-header"><h1>💰 Sistem Kasir</h1><p>Kelola pesanan dan pembayaran pelanggan</p></div>
+                <div class="dashboard-grid">
+                    <div class="stat-card"><span class="stat-icon">🛒</span><div class="stat-value" id="total-orders">0</div><div class="stat-label">Total Pesanan Aktif</div></div>
+                    <div id="revenue-stat-card" class="stat-card"><span class="stat-icon">💰</span><div class="stat-value" id="daily-revenue">Rp 0</div><div class="stat-label">Pendapatan Hari Ini</div></div>
+                    <div class="stat-card"><span class="stat-icon">⏱️</span><div class="stat-value" id="pending-orders">0</div><div class="stat-label">Pesanan Menunggu</div></div>
+                </div>
+                <div class="order-list"><h3>📋 Daftar Pesanan</h3><div id="cashier-orders"></div></div>
+            </div>
+            <div id="kitchen-page" class="page">
+                <div class="page-header"><h1>👨‍🍳 Dashboard Dapur</h1><p>Kelola pesanan yang perlu dimasak</p></div>
+                <div class="dashboard-grid">
+                    <div class="stat-card"><span class="stat-icon">🔥</span><div class="stat-value" id="cooking-orders">0</div><div class="stat-label">Sedang Dimasak</div></div>
+                    <div class="stat-card"><span class="stat-icon">✅</span><div class="stat-value" id="ready-orders">0</div><div class="stat-label">Siap Disajikan</div></div>
+                    <div class="stat-card"><span class="stat-icon">🍽️</span><div class="stat-value" id="completed-orders-kitchen">0</div><div class="stat-label">Pesanan Selesai Hari Ini</div></div>
+                </div>
+                <div class="order-list"><h3>🍳 Antrian Pesanan</h3><div id="kitchen-orders"></div></div>
+            </div>
+
+            <div id="menu-page" class="page">
+                <div class="page-header"><h1>🍽️ Kelola Ketersediaan Menu</h1><p>Atur menu yang tersedia atau habis di aplikasi pelanggan</p></div>
+                <div class="order-list">
+                    <h3>Daftar Menu</h3>
+                    <div id="menu-management-list">
+                    </div>
+                </div>
+            </div>
+
+            <div id="manager-page" class="page">
+                <div class="page-header"><h1>📊 Dashboard Manager</h1><p>Analisis performa dan laporan bisnis</p></div>
+                
+                <div class="report-box">
+                    <h3>Laporan Penjualan</h3>
+                    <div class="report-controls">
+                        <input type="date" id="start-date">
+                        <input type="date" id="end-date">
+                        <button id="download-report-btn" class="action-btn success">Download Laporan (Excel)</button>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="stat-card"><span class="stat-icon">💰</span><div class="stat-value" id="manager-total-sales">Rp 0</div><div class="stat-label">Total Penjualan Hari Ini</div></div>
+                    <div class="stat-card"><span class="stat-icon">📦</span><div class="stat-value" id="manager-total-orders">0</div><div class="stat-label">Total Transaksi Selesai</div></div>
+                    <div class="stat-card"><span class="stat-icon">📈</span><div class="stat-value" id="manager-avg-order">Rp 0</div><div class="stat-label">Rata-rata per Transaksi</div></div>
+                </div>
+                <div class="order-list"><h3>📊 Menu Terlaris Hari Ini</h3><div id="best-selling-list"><p>Belum ada data penjualan hari ini.</p></div></div>
+            
+                <div class="order-list">
+                    <h3>🚫 Daftar Pesanan Dibatalkan Hari Ini</h3>
+                    <div id="voided-orders-list">
+                        <p>Belum ada pesanan yang dibatalkan hari ini.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="void-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Batalkan Pesanan</h2>
+            <p>Anda akan membatalkan pesanan. Harap masukkan alasan yang jelas untuk manajer.</p>
+            <form id="void-form">
+                <div class="form-group">
+                    <label for="void-reason">Alasan Pembatalan</label>
+                    <textarea id="void-reason" rows="3" required></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="cancel-void-btn" class="action-btn">Tutup</button>
+                    <button type="submit" id="confirm-void-btn" class="action-btn danger">Konfirmasi Batal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- ====== UI controls shown only on Kitchen page ====== -->
+    <div id="kitchen-alert-toolbar" class="hidden" style="position:sticky;top:64px;z-index:1200;padding:12px 16px;margin:10px;border-radius:12px;background:#fff8e1;border:1px solid #ffecb3;box-shadow:0 6px 18px rgba(0,0,0,.08);display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+    <strong>🔔 Alarm Dapur</strong>
+    <label style="display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="alarm-enabled" checked /> Aktif
+    </label>
+    <label style="display:flex;align-items:center;gap:6px">
+        Volume <input id="alarm-volume" type="range" min="0" max="1" step="0.01" value="1" style="width:140px"/>
+    </label>
+    <label style="display:flex;align-items:center;gap:6px">
+        Nada
+        <select id="alarm-preset" style="padding:6px 8px;border:1px solid #e0e0e0;border-radius:8px">
+        <option value="new_order">Pesanan Baru (Ding)</option>
+        <option value="overdue_siren">Overdue (Sirine)</option>
+        <option value="long_beep">Beep Panjang</option>
+        <option value="triple_beep">Tiga Beep</option>
+        <option value-"bell_long">Bell 3 dtk</option>
+        </select>
+    </label>
+    <button id="alarm-test" class="action-btn">Tes Bunyi</button>
+    <span id="alarm-status" style="font-size:.9rem;color:#795548"></span>
+    </div>
+
+    <!-- ====== Audio assets (offline, no internet needed) ====== -->
+    <audio id="alarm-audio" preload="auto">
+    <source src="data:audio/mp3;base64,//uQZAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQAA..." type="audio/mpeg" />
+    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAABC7AAACABYAAA..." type="audio/wav" />
+    </audio>
+
+    <style>
+    .order-item.overdue { border-left-color:#d32f2f !important; background:#fff5f5; position:relative; }
+    .order-item.overdue::after{ content:"⏰ OVERDUE"; position:absolute; right:12px; top:12px; font-weight:700; color:#c62828; background:#ffcdd2; padding:2px 8px; border-radius:12px; font-size:.75rem; }
+    @keyframes overPulse{0%{box-shadow:0 0 0 0 rgba(211,47,47,.35)}70%{box-shadow:0 0 0 16px rgba(211,47,47,0)}100%{box-shadow:0 0 0 0 rgba(211,47,47,0)}}
+    .order-item.overdue { animation: overPulse 1.8s infinite; }
+    </style>
+
+    <script>
+    (function(){
+    // ===== CONFIG =====
+    const CFG = {
+        pendingOverMin: 3,
+        preparingOverMin: 5,
+        reAlertMinGap: 2,
+        newOrderChimeRepeats: 2
+    };
+
+    // ===== STATE =====
+    const s = {
+        enabled: true,
+        lastChime: 0,
+        lastAlertPerOrder: new Map(),
+        currentPage: 'cashier'
+    };
+
+    const prefOn = localStorage.getItem('kitchenAlarm.enabled');
+    if (prefOn !== null) s.enabled = prefOn === 'true';
+
+    const audioEl = document.getElementById('alarm-audio');
+    const toolbar = document.getElementById('kitchen-alert-toolbar');
+    const chkEnabled = document.getElementById('alarm-enabled');
+    const vol = document.getElementById('alarm-volume');
+    const testBtn = document.getElementById('alarm-test');
+    const info = document.getElementById('alarm-status');
+    const presetSel = document.getElementById('alarm-preset');
+
+    let audioCtx = null, gainNode = null;
+    function ensureAudio(){
+        try{
+            if(!audioCtx){
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if(!Ctx) return false;
+                audioCtx = new Ctx();
+                gainNode = audioCtx.createGain();
+                gainNode.gain.value = parseFloat(vol?.value||'1');
+                gainNode.connect(audioCtx.destination);
+            }
+            if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
+            return true;
+        }catch(e){ return false; }
+    }
+
+    const savedVol = parseFloat(localStorage.getItem('kitchenAlarm.volume'));
+    if (!Number.isNaN(savedVol)) vol.value = savedVol;
+    audioEl.volume = parseFloat(vol.value || '1');
+    chkEnabled.checked = s.enabled;
+
+    const savedPreset = localStorage.getItem('kitchenAlarm.preset');
+    if (savedPreset && presetSel) presetSel.value = savedPreset;
+
+    async function chime(times=1, forcePreset = null){
+        if(!s.enabled) return;
+        const preset = forcePreset || (presetSel?.value) || 'new_order';
+
+        if(ensureAudio()){
+            try{
+                for(let i=0;i<times;i++){
+                    if (preset==='new_order'){
+                        await playTone(480, 980, 980, 'square');
+                    } else if (preset==='overdue_siren'){
+                        await playSiren(1800);
+                    } else if (preset==='long_beep'){
+                        await playTone(1500, 850, 850, 'sawtooth');
+                    } else if (preset==='triple_beep'){
+                        for(let k=0;k<3;k++){ await playTone(300, 1000, 1000, 'square'); await sleep(180); }
+                    } else if (preset==='bell_long'){
+                        await playBell3();
+                    }
+                    await sleep(220);
+                }
+                return;
+            }catch(e){ }
+        }
+
+        try{
+            audioEl.muted = false;
+            for(let i=0;i<times;i++){
+                audioEl.pause();
+                audioEl.currentTime = 0;
+                await audioEl.play();
+                await sleep(800);
+            }
+        }catch(e){
+            info.textContent = 'Audio diblokir. Klik tombol ini sekali lalu pastikan tab tidak dimute.';
+        }
+    }
+
+    function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+    async function playTone(durationMs, fStart, fEnd, type='sine'){
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = type;
+        osc.connect(g); g.connect(gainNode);
+        const now = audioCtx.currentTime;
+        const v = (parseFloat(vol?.value||'1')) * 0.7;
+        g.gain.setValueAtTime(Math.max(0.0001, v), now);
+        if (fStart===fEnd){ osc.frequency.setValueAtTime(fStart, now); }
+        else { osc.frequency.setValueAtTime(fStart, now); osc.frequency.linearRampToValueAtTime(fEnd, now + durationMs/1000); }
+        osc.start(now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + durationMs/1000);
+        osc.stop(now + durationMs/1000 + 0.02);
+        await sleep(durationMs+30);
+    }
+
+    async function playSiren(totalMs){
+        const seg = 300; 
+        let t = 0;
+        while (t < totalMs){
+            await playTone(seg, 700, 1300, 'square'); t+=seg;
+            if (t>=totalMs) break;
+            await playTone(seg, 1300, 700, 'square'); t+=seg;
+        }
+    }
+
+    async function playBell3(){
+        const base = audioCtx.createOscillator();
+        const harm = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        const now = audioCtx.currentTime;
+        const v = (parseFloat(vol?.value||'1'));
+        base.type='triangle'; base.frequency.value=880; 
+        harm.type='sine';     harm.frequency.value=1320; 
+        base.connect(g); harm.connect(g); g.connect(gainNode);
+        g.gain.setValueAtTime(Math.max(0.0001, v), now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 3.0);
+        base.start(now); harm.start(now);
+        base.stop(now+3.02); harm.stop(now+3.02);
+        await sleep(3050);
+    }
+
+    function onPageChange(){
+        const active = document.querySelector('.page.active');
+        if(!active){ toolbar.classList.add('hidden'); return; }
+        if (active.id === 'kitchen-page'){
+            s.currentPage = 'kitchen';
+            toolbar.classList.remove('hidden');
+        } else {
+            s.currentPage = active.id.replace('-page','');
+            toolbar.classList.add('hidden');
+        }
+    }
+
+    const pageRoot = document.querySelector('.container');
+    if (pageRoot){
+        const mo = new MutationObserver(onPageChange);
+        mo.observe(pageRoot,{ attributes:true, subtree:true, attributeFilter:['class'] });
+        onPageChange();
+    }
+
+    testBtn?.addEventListener('click', ()=> chime(1));
+    presetSel?.addEventListener('change', (e)=>{
+        localStorage.setItem('kitchenAlarm.preset', e.target.value);
+    });
+    chkEnabled?.addEventListener('change', (e)=>{
+        s.enabled = !!e.target.checked; localStorage.setItem('kitchenAlarm.enabled', String(s.enabled));
+    });
+    vol?.addEventListener('input', (e)=>{
+        const v = parseFloat(e.target.value||'1'); audioEl.volume = v; localStorage.setItem('kitchenAlarm.volume', String(v));
+        if (gainNode) gainNode.gain.value = v;
+    });
+    
+    window.__kitchenState = s;
+    window.__kitchenChime = chime;
+
+    window.__kitchenOverdueScan = function(orders){
+        if(!Array.isArray(orders)) return;
+        const now = Date.now();
+
+        document.querySelectorAll('#kitchen-orders .order-item.overdue').forEach(e=>e.classList.remove('overdue'));
+
+        orders.forEach(o=>{
+            if(!o || !o.status) return;
+            const tSec = (o.updatedAt?.seconds || o.createdAt?.seconds || Math.floor(now/1000));
+            const ageMin = (now - (tSec*1000)) / 60000;
+            let isOver = false;
+            if (o.status==='pending' && ageMin >= CFG.pendingOverMin) isOver = true;
+            if (o.status==='preparing' && ageMin >= CFG.preparingOverMin) isOver = true;
+
+            if (isOver){
+                const card = document.querySelector(`#kitchen-orders .order-item [data-order-id="${o.id}"]`)?.closest('.order-item')
+                        || document.querySelector(`#kitchen-orders .order-item[data-order-id="${o.id}"]`)
+                        || Array.from(document.querySelectorAll('#kitchen-orders .order-item')).find(div=> div.textContent.includes(`Meja ${o.table}`) && div.textContent.includes(o.customer));
+                
+                if (card) card.classList.add('overdue');
+
+                const last = s.lastAlertPerOrder.get(o.id) || 0;
+                if (now - last > CFG.reAlertMinGap*60000){
+                    if (s.currentPage==='kitchen') {
+                        chime(1, 'overdue_siren');
+                    }
+                    s.lastAlertPerOrder.set(o.id, now);
+                }
+            }
+        });
+    };
+
+    let flashTimer=null, origTitle=document.title;
+    window.__flashTitle = function(msg){
+        clearInterval(flashTimer); let on=false; let count=0; document.title = origTitle;
+        flashTimer = setInterval(()=>{
+            on=!on; document.title = on? (`${msg} · Payboss`): origTitle; if(++count>10){clearInterval(flashTimer); document.title=origTitle;}
+        }, 800);
+    }
+    
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            clearInterval(flashTimer);
+            document.title = origTitle;
+        }
+    });
+
+    window.addEventListener('click', ()=>{
+        if('Notification' in window && Notification.permission==='default'){
+            Notification.requestPermission().catch(()=>{});
+        }
+        ensureAudio();
+    }, { once:true });
+
+    setInterval(()=>{
+        try{
+            const list = window.__latestActiveOrdersForKitchen || [];
+            window.__kitchenOverdueScan(list);
+        }catch(e){}
+    }, 30000);
+    })();
+    </script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, query, where, getDocs, getDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0nHqdAw_dV9pHcQ_cSnWtNsn4CwwwUNc",
+            authDomain: "payboss-cafe-system.firebaseapp.com",
+            projectId: "payboss-cafe-system",
+            storageBucket: "payboss-cafe-system.appspot.com",
+            messagingSenderId: "570523503793",
+            appId: "1:570523503793:web:0a7ba7ce751eb95a3f6690",
+            measurementId: "G-H1NJ369HE9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        const STAFF_PIN_CODE = "2525"; 
+        const SHARED_STAFF_EMAIL = "staff-entry@payboss.com";
+        const SHARED_STAFF_PASS = "payboss-staff-secure-access"; 
+
+        let __activeOrdersShadow = []; 
+        // [FITUR BARU] Peta untuk menyimpan kategori setiap menu
+        let globalItemCategories = {};
+
+        const loginPage = document.getElementById('login-page');
+        const appContainer = document.getElementById('app-container');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        const voidModal = document.getElementById('void-modal');
+        const voidForm = document.getElementById('void-form');
+        const voidReasonInput = document.getElementById('void-reason');
+        const cancelVoidBtn = document.getElementById('cancel-void-btn');
+        const confirmVoidBtn = document.getElementById('confirm-void-btn');
+        let orderToVoidId = null;
+
+        let unsubscribeOrders = null;
+        let unsubscribeCompleted = null;
+        let unsubscribeMenu = null;
+        let unsubscribeVoided = null; 
+        
+        const modeBtns = document.querySelectorAll('.mode-btn');
+        const staffSection = document.getElementById('staff-login-section');
+        const managerSection = document.getElementById('manager-login-section');
+        let currentLoginMode = 'staff';
+
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentLoginMode = btn.dataset.mode;
+                if (currentLoginMode === 'staff') {
+                    staffSection.classList.remove('hidden');
+                    managerSection.classList.add('hidden');
+                } else {
+                    staffSection.classList.add('hidden');
+                    managerSection.classList.remove('hidden');
+                }
+            });
+        });
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                const managerEmails = ['fedrik.christian07@gmail.com', 'paybosscafetanjung@gmail.com'];
+                let userRole = null;
+
+                if (managerEmails.includes(user.email)) {
+                    userRole = 'manager';
+                } else if (user.email === SHARED_STAFF_EMAIL) {
+                    userRole = 'staff';
+                } else {
+                    userRole = 'staff'; 
+                }
+
+                if (userRole) {
+                    loginPage.classList.add('hidden');
+                    appContainer.classList.remove('hidden');
+                    setupUIForRole(userRole);
+                    initializeAppLogic();
+                } else {
+                    signOut(auth).then(() => sessionStorage.setItem('loginError', 'Akun Anda tidak memiliki hak akses.'));
+                }
+            } else {
+                loginPage.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+                const storedError = sessionStorage.getItem('loginError');
+                if (storedError) {
+                    loginError.textContent = storedError;
+                    loginError.classList.remove('hidden');
+                    sessionStorage.removeItem('loginError');
+                }
+                if (unsubscribeOrders) { unsubscribeOrders(); unsubscribeOrders = null; }
+                if (unsubscribeCompleted) { unsubscribeCompleted(); unsubscribeCompleted = null; }
+                if (unsubscribeMenu) { unsubscribeMenu(); unsubscribeMenu = null; } 
+                if (unsubscribeVoided) { unsubscribeVoided(); unsubscribeVoided = null; }
+            }
+        });
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loginError.classList.add('hidden');
+            const submitBtn = document.getElementById('login-submit-btn');
+            
+            if (currentLoginMode === 'staff') {
+                const inputPin = document.getElementById('staff-pin').value.trim();
+                
+                if (inputPin === STAFF_PIN_CODE) {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = "Memproses Login...";
+
+                    try {
+                        await signInWithEmailAndPassword(auth, SHARED_STAFF_EMAIL, SHARED_STAFF_PASS);
+                    } catch (error) {
+                        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+                            try {
+                                console.log("Akun staf belum ada, membuat baru...");
+                                await createUserWithEmailAndPassword(auth, SHARED_STAFF_EMAIL, SHARED_STAFF_PASS);
+                            } catch (createErr) {
+                                console.error("Gagal membuat akun staf:", createErr);
+                                loginError.textContent = "Gagal inisialisasi akun staf: " + createErr.message;
+                                loginError.classList.remove('hidden');
+                                submitBtn.disabled = false;
+                                submitBtn.textContent = "Masuk";
+                            }
+                        } else {
+                            console.error("Login staf error:", error);
+                            loginError.textContent = "Login gagal: " + error.message;
+                            loginError.classList.remove('hidden');
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = "Masuk";
+                        }
+                    }
+                } else {
+                    loginError.textContent = "PIN salah. Silakan coba lagi.";
+                    loginError.classList.remove('hidden');
+                }
+
+            } else {
+                const email = loginForm.email.value;
+                const password = loginForm.password.value;
+
+                signInWithEmailAndPassword(auth, email, password)
+                    .catch((error) => {
+                        let message = "Email atau password salah.";
+                        loginError.textContent = message;
+                        loginError.classList.remove('hidden');
+                    });
+            }
+        });
+
+        logoutBtn.addEventListener('click', (e) => { e.preventDefault(); signOut(auth); });
+
+        function setupUIForRole(role) {
+            const managerLink = document.querySelector('.nav-link[data-page="manager"]');
+            const revenueCard = document.getElementById('revenue-stat-card');
+
+            if (role === 'manager') {
+                managerLink.classList.remove('hidden');
+                if(revenueCard) revenueCard.classList.remove('hidden');
+
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('start-date').value = today;
+                document.getElementById('end-date').value = today;
+            } else {
+                managerLink.classList.add('hidden');
+                if(revenueCard) revenueCard.classList.add('hidden');
+
+                if (document.getElementById('manager-page').classList.contains('active')) {
+                    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                    document.getElementById('cashier-page').classList.add('active');
+                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                    document.querySelector('.nav-link[data-page="cashier"]').classList.add('active');
+                }
+            }
+        }
+
+        function initializeAppLogic() {
+            let activeOrders = [];
+            let completedToday = [];
+
+            if (!unsubscribeOrders) {
+                unsubscribeOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
+                    activeOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                    __activeOrdersShadow = activeOrders;
+                    window.__latestActiveOrdersForKitchen = activeOrders; 
+                    
+                    renderStaffOrders(activeOrders);
+
+                    try { 
+                        window.__kitchenOverdueScan && window.__kitchenOverdueScan(activeOrders); 
+                    } catch(e){
+                        console.error("Gagal trigger overdue scan:", e);
+                    }
+                    updateAllDashboards(activeOrders, completedToday);
+                });
+            }
+
+            if (!unsubscribeCompleted) {
+                const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+                unsubscribeCompleted = onSnapshot(query(collection(db, "completedOrders"), where("completedAt", ">=", todayStart)), (snapshot) => {
+                    completedToday = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    updateAllDashboards(activeOrders, completedToday);
+                });
+            }
+
+            // [PERBAIKAN] Listener menu sekarang juga mengisi 'globalItemCategories'
+            if (!unsubscribeMenu) {
+                unsubscribeMenu = onSnapshot(collection(db, 'menu'), (snapshot) => {
+                    const menuItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    
+                    // Simpan pemetaan Nama Menu -> Kategori untuk filter Dapur
+                    globalItemCategories = {};
+                    menuItems.forEach(item => {
+                        // Simpan dengan key lowercase agar pencocokan nama lebih mudah
+                        if (item.name) {
+                            globalItemCategories[item.name.toLowerCase().trim()] = item.category ? item.category.toLowerCase() : 'lainnya';
+                        }
+                    });
+
+                    renderMenuManagement(menuItems);
+                    // Render ulang order jika menu berubah (siapa tahu kategori berubah)
+                    if(activeOrders.length > 0) renderStaffOrders(activeOrders);
+                });
+            }
+
+            if (!unsubscribeVoided) {
+                const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+                const q = query(collection(db, "voidedOrders"), where("voidedAt", ">=", todayStart));
+                
+                unsubscribeVoided = onSnapshot(q, (snapshot) => {
+                    const voidedToday = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    voidedToday.sort((a, b) => (b.voidedAt?.seconds || 0) - (a.voidedAt?.seconds || 0));
+                    renderVoidedOrders(voidedToday);
+                });
+            }
+
+            setupNavigation();
+            setupOrderActionListeners();
+            setupMenuActionListeners(); 
+            setupReportDownloader();
+            setupVoidModalListeners(); 
+        }
+
+        function renderStaffOrders(orders) {
+            const cashierContainer = document.getElementById('cashier-orders');
+            const kitchenContainer = document.getElementById('kitchen-orders');
+            if(!cashierContainer || !kitchenContainer) return;
+            const kitchenQueue = orders.filter(o => o.status === 'pending' || o.status === 'preparing');
+            
+            cashierContainer.innerHTML = orders.length > 0 ? '' : '<p>Belum ada pesanan aktif.</p>';
+            orders.forEach(order => cashierContainer.appendChild(createOrderElement(order, 'cashier')));
+            
+            kitchenContainer.innerHTML = '';
+            let hasKitchenItems = false;
+            
+            kitchenQueue.forEach(order => {
+                // Cek apakah order ini punya item dapur. Jika createOrderElement return null, jangan di-append
+                const orderEl = createOrderElement(order, 'kitchen');
+                if (orderEl) {
+                    kitchenContainer.appendChild(orderEl);
+                    hasKitchenItems = true;
+                }
+            });
+
+            if (!hasKitchenItems) {
+                kitchenContainer.innerHTML = '<p>Tidak ada antrian di dapur.</p>';
+            }
+        }
+        
+        // [FUNGSI DENGAN FITUR FILTERING KATEGORI]
+        function createOrderElement(order, type) {
+            const div = document.createElement('div');
+            div.className = 'order-item';
+            div.dataset.orderId = order.id; 
+
+            const statusMap = {
+                pending: { text: 'Menunggu', class: 'status-pending' },
+                preparing: { text: 'Dimasak', class: 'status-preparing' },
+                ready: { text: 'Siap', class: 'status-ready' }
+            };
+
+            const safeItems = Array.isArray(order.items) ? order.items : [];
+            let itemsToDisplay = safeItems;
+
+            // [LOGIKA FILTER DAPUR]
+            if (type === 'kitchen') {
+                // Daftar kategori yang BOLEH masuk dapur
+                const kitchenCategories = ['food', 'sauce', 'additional', 'snack', 'snacks', 'makanan', 'makanan berat'];
+                
+                // Filter item berdasarkan kategori dari globalItemCategories
+                itemsToDisplay = safeItems.filter(item => {
+                    const nameKey = (item.name || '').toLowerCase().trim();
+                    const category = globalItemCategories[nameKey] || 'lainnya';
+                    return kitchenCategories.includes(category);
+                });
+
+                // Jika setelah difilter kosong (artinya pesanan ini cuma minuman/rokok), jangan tampilkan kartu ini di dapur
+                if (itemsToDisplay.length === 0) {
+                    return null;
+                }
+            }
+            // Kasir menampilkan SEMUA item (tidak difilter) agar tagihan akurat
+
+            const itemsDisplay = itemsToDisplay.map(i => 
+                `${i.name || 'Item Tanpa Nama'}${i.variant ? ` (${i.variant})` : ''} x${i.qty || 1}`
+            ).join(', ') || '<span style="color:red;">Data menu kosong/rusak</span>';
+
+            const time = order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleTimeString('id-ID') : '...';
+            
+            // Tampilan detail berbeda sedikit untuk Dapur (lebih simpel) vs Kasir (ada harga)
+            let detailsHtml = '';
+            if (type === 'cashier') {
+                detailsHtml = `<strong>Total:</strong> Rp ${(order.total || 0).toLocaleString('id-ID')} | <strong>Waktu:</strong> ${time}`;
+            } else {
+                detailsHtml = `<strong>Waktu:</strong> ${time}`;
+            }
+
+            let buttons = '';
+            if (type === 'cashier') {
+                if (order.status === 'pending') {
+                    buttons = `<button class="action-btn" data-id="${order.id}" data-action="confirm">Konfirmasi</button>`;
+                    buttons += ` <button class="action-btn danger" data-id="${order.id}" data-action="void-request">Batalkan</button>`;
+                } else if (order.status === 'ready') {
+                    buttons = `<button class="action-btn success" data-id="${order.id}" data-action="complete">Selesaikan</button>`;
+                } else if (order.status === 'preparing') {
+                    buttons += ` <button class="action-btn danger" data-id="${order.id}" data-action="void-request">Batalkan</button>`;
+                }
+                buttons += ` <button class="action-btn print" data-id="${order.id}" data-action="print">Cetak</button>`;
+            } else if (type === 'kitchen') {
+                if (order.status === 'pending') {
+                    buttons = `<button class="action-btn" disabled>Tunggu Konfirmasi</button>`;
+                } else if (order.status === 'preparing') {
+                    buttons = `<button class="action-btn success" data-id="${order.id}" data-action="finish">Selesai Masak</button>`;
+                }
+                // Dapur juga bisa cetak struk (versi dapur)
+                buttons += ` <button class="action-btn print" data-id="${order.id}" data-action="print-kitchen">Cetak Dapur</button>`;
+                buttons += ` <button class="action-btn danger" data-id="${order.id}" data-action="void-request">Batalkan</button>`;
+            }
+
+            div.innerHTML = `
+                <div class="order-header">
+                    <span class="order-id" data-order-id="${order.id}">${order.table} - ${order.customer}</span>
+                    <span class="order-status ${statusMap[order.status]?.class || ''}">${statusMap[order.status]?.text || order.status}</span>
+                </div>
+                <div class="order-details">
+                    <strong>Pesanan:</strong> ${itemsDisplay}<br>
+                    ${detailsHtml}
+                </div>
+                <div style="margin-top: 10px;">${buttons}</div>
+            `;
+            return div;
+        }
+        
+        function renderMenuManagement(menuItems) {
+            const container = document.getElementById('menu-management-list');
+            if (!container) return;
+            
+            menuItems.sort((a, b) => {
+                const categoryA = a.category || 'lainnya';
+                const categoryB = b.category || 'lainnya';
+                if (categoryA < categoryB) return -1;
+                if (categoryA > categoryB) return 1;
+                if (a.name < b.name) return -1;
+                if (a.name > b.name) return 1;
+                return 0;
+            });
+
+            container.innerHTML = menuItems.length > 0 ? '' : '<p>Belum ada item menu di database. Hubungi admin untuk menambahkan.</p>';
+            
+            let currentCategory = "";
+            menuItems.forEach(item => {
+                const itemCategory = item.category || 'lainnya';
+                if (itemCategory !== currentCategory) {
+                    currentCategory = itemCategory;
+                    const categoryHeader = document.createElement('h4');
+                    categoryHeader.className = 'menu-category-header';
+                    categoryHeader.textContent = currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1);
+                    container.appendChild(categoryHeader);
+                }
+
+                const div = document.createElement('div');
+                div.className = 'menu-item-manage';
+                
+                const isAvailable = item.isAvailable !== false; 
+                const availabilityClass = isAvailable ? 'available' : 'unavailable';
+                const availabilityText = isAvailable ? 'Tersedia' : 'Habis';
+
+                div.innerHTML = `
+                    <div class="menu-item-info">
+                        ${item.name}
+                        <span>Rp ${(item.price || 0).toLocaleString('id-ID')}</span>
+                    </div>
+                    <button class="toggle-btn ${availabilityClass}" 
+                            data-id="${item.id}" 
+                            data-action="toggle-availability" 
+                            data-current-status="${isAvailable}"
+                            data-name="${item.name}">
+                        ${availabilityText}
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        function renderVoidedOrders(orders) {
+            const container = document.getElementById('voided-orders-list');
+            if (!container) return; 
+
+            if (orders.length === 0) {
+                container.innerHTML = '<p>Belum ada pesanan yang dibatalkan hari ini.</p>';
+                return;
+            }
+
+            container.innerHTML = ''; 
+            orders.forEach(order => {
+                const div = document.createElement('div');
+                div.className = 'order-item voided'; 
+                
+                const safeItems = Array.isArray(order.items) ? order.items : [];
+                const items = safeItems.map(i => 
+                    `${i.name}${i.variant ? ` (${i.variant})` : ''} x${i.qty}`
+                ).join(', ');
+
+                const voidTime = order.voidedAt?.seconds ? new Date(order.voidedAt.seconds * 1000).toLocaleTimeString('id-ID') : '...';
+                const orderTime = order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleTimeString('id-ID') : '...';
+
+                div.innerHTML = `
+                    <div class="order-header">
+                        <span class="order-id">Meja ${order.table} - ${order.customer}</span>
+                        <span class="order-status status-pending">DIBATALKAN</span>
+                    </div>
+                    <div class="order-details">
+                        <strong>Pesanan Asli:</strong> ${items}<br>
+                        <strong>Total Asli:</strong> Rp ${(order.total||0).toLocaleString('id-ID')}<br>
+                        <strong>Waktu Pesan:</strong> ${orderTime} | <strong>Waktu Batal:</strong> ${voidTime}
+                    </div>
+                    <div class="void-reason">
+                        <strong>Alasan Batal:</strong> ${order.voidReason || 'Tidak ada alasan'}<br>
+                        <small>Dibatalkan oleh: ${order.voidedBy || 'Tidak diketahui'}</small>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        function updateAllDashboards(activeOrders, completedOrders) {
+            const totalSales = completedOrders.reduce((sum, order) => sum + order.total, 0);
+            const updateElementText = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+            
+            updateElementText('total-orders', activeOrders.length);
+            updateElementText('pending-orders', activeOrders.filter(o => o.status === 'pending').length);
+            updateElementText('cooking-orders', activeOrders.filter(o => o.status === 'preparing').length);
+            updateElementText('ready-orders', activeOrders.filter(o => o.status === 'ready').length);
+            updateElementText('daily-revenue', `Rp ${totalSales.toLocaleString('id-ID')}`);
+            updateElementText('completed-orders-kitchen', completedOrders.length);
+            updateElementText('manager-total-sales', `Rp ${totalSales.toLocaleString('id-ID')}`);
+            updateElementText('manager-total-orders', completedOrders.length);
+            const avgOrder = completedOrders.length > 0 ? Math.round(totalSales / completedOrders.length) : 0;
+            updateElementText('manager-avg-order', `Rp ${avgOrder.toLocaleString('id-ID')}`);
+            updateBestSelling(completedOrders);
+        }
+        
+        function updateBestSelling(completedOrders) {
+             const container = document.getElementById('best-selling-list');
+             if(!container) return;
+            if (completedOrders.length === 0) {
+                container.innerHTML = '<p>Belum ada data penjualan hari ini.</p>';
+                return;
+            }
+            const sales = {};
+            completedOrders.forEach(order => {
+                const safeItems = Array.isArray(order.items) ? order.items : [];
+                safeItems.forEach(item => {
+                    const itemName = `${item.name}${item.variant ? ` (${item.variant})` : ''}`;
+                    if (!sales[itemName]) sales[itemName] = { qty: 0, revenue: 0 };
+                    sales[itemName].qty += item.qty;
+                    sales[itemName].revenue += (item.price * item.qty);
+                });
+            });
+            const sorted = Object.entries(sales).sort(([,a],[,b]) => b.qty - a.qty).slice(0, 3);
+            const medals = ['🥇', '🥈', '🥉'];
+            container.innerHTML = sorted.map(([name, data], i) => `
+                <div class="order-item">
+                    <div class="order-header"><span class="order-id">${medals[i]} ${name}</span><span class="order-status status-ready">${data.qty} porsi</span></div>
+                    <div class="order-details">Pendapatan (sblm pajak): Rp ${data.revenue.toLocaleString('id-ID')}</div>
+                </div>
+            `).join('');
+        }
+        
+        function setupOrderActionListeners() {
+            if (document.body.dataset.actionListenerAttached) return;
+            document.body.dataset.actionListenerAttached = 'true';
+
+            document.body.addEventListener('click', async function(e) {
+                const actionBtn = e.target.closest('.action-btn[data-action]');
+                if (!actionBtn) return;
+
+                const orderId = actionBtn.dataset.id;
+                const action = actionBtn.dataset.action;
+                const orderRef = doc(db, 'orders', orderId);
+                try {
+                    if (action === 'confirm') {
+                        await updateDoc(orderRef, { status: 'preparing', updatedAt: serverTimestamp() });
+                        
+                        try {
+                            const { __kitchenState, __kitchenChime, __flashTitle } = window;
+                            if (__kitchenState && __kitchenState.currentPage === 'kitchen') {
+                                __kitchenChime && __kitchenChime(CFG.newOrderChimeRepeats, 'new_order');
+                            }
+                            if (document.hidden) {
+                                __flashTitle && __flashTitle('🍳 Pesanan dikonfirmasi!');
+                            }
+                        } catch(err) { console.error("Gagal panggil hook notifikasi", err); }
+
+                    } else if (action === 'finish') {
+                        await updateDoc(orderRef, { status: 'ready', updatedAt: serverTimestamp() });
+
+                    } else if (action === 'complete') {
+                        const orderDoc = await getDoc(orderRef);
+                        if (orderDoc.exists()){
+                            const orderData = orderDoc.data();
+                            await addDoc(collection(db, 'completedOrders'), { ...orderData, completedAt: serverTimestamp() });
+                            await deleteDoc(orderRef);
+                            showNotification('Pesanan selesai.');
+                        }
+                    } else if (action === 'void-request') {
+                        orderToVoidId = orderId;
+                        voidReasonInput.value = ''; 
+                        confirmVoidBtn.disabled = true; 
+                        voidModal.classList.remove('hidden');
+                        voidReasonInput.focus();
+
+                    } else if (action === 'print') {
+                        const orderToPrintDoc = await getDoc(orderRef);
+                        if (orderToPrintDoc.exists()) {
+                            const orderData = { id: orderToPrintDoc.id, ...orderToPrintDoc.data() };
+                            printReceipt(orderData);
+                        } else {
+                            const completedOrderRef = doc(db, 'completedOrders', orderId);
+                            const completedOrderDoc = await getDoc(completedOrderRef);
+                            if (completedOrderDoc.exists()) {
+                                const orderData = { id: completedOrderDoc.id, ...completedOrderDoc.data() };
+                                printReceipt(orderData);
+                            } else {
+                                showNotification("Data pesanan tidak ditemukan.", true);
+                            }
+                        }
+                    
+                    } else if (action === 'print-kitchen') {
+                        const orderToPrintDoc = await getDoc(orderRef);
+                        if (orderToPrintDoc.exists()) {
+                            const orderData = { id: orderToPrintDoc.id, ...orderToPrintDoc.data() };
+                            printKitchenOrder(orderData);
+                        } else {
+                            showNotification("Data pesanan tidak ditemukan.", true);
+                        }
+                    }
+
+                } catch (error) { console.error(error); showNotification('Gagal memproses aksi!', true); }
+            });
+        }
+
+
+        function setupVoidModalListeners() {
+            voidReasonInput.addEventListener('input', () => {
+                confirmVoidBtn.disabled = !voidReasonInput.value.trim();
+            });
+
+            cancelVoidBtn.addEventListener('click', () => {
+                voidModal.classList.add('hidden');
+                orderToVoidId = null;
+            });
+
+            voidForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!orderToVoidId || !voidReasonInput.value.trim()) return;
+
+                const reason = voidReasonInput.value.trim();
+                const cashierEmail = auth.currentUser ? auth.currentUser.email : 'unknown@staff';
+                const orderRef = doc(db, 'orders', orderToVoidId);
+
+                confirmVoidBtn.disabled = true;
+                confirmVoidBtn.textContent = 'Memproses...';
+
+                try {
+                    const orderDoc = await getDoc(orderRef);
+                    if (orderDoc.exists()) {
+                        const orderData = orderDoc.data();
+                        
+                        await addDoc(collection(db, 'voidedOrders'), {
+                            ...orderData,
+                            voidedAt: serverTimestamp(),
+                            voidedBy: cashierEmail,
+                            voidReason: reason,
+                            originalOrderId: orderToVoidId
+                        });
+
+                        await deleteDoc(orderRef);
+
+                        showNotification('Pesanan berhasil dibatalkan.');
+                        voidModal.classList.add('hidden');
+                        orderToVoidId = null;
+                    } else {
+                        showNotification('Pesanan tidak lagi ditemukan.', true);
+                    }
+                } catch (error) {
+                    console.error("Error voiding order: ", error);
+                    showNotification('Gagal membatalkan pesanan.', true);
+                } finally {
+                    confirmVoidBtn.disabled = false;
+                    confirmVoidBtn.textContent = 'Konfirmasi Batal';
+                }
+            });
+        }
+
+        function printReceipt(order) {
+            const receiptWidth = 32; 
+            const pad = (str, len, char = ' ') => String(str).padEnd(len, char);
+            const padLeft = (str, len, char = ' ') => String(str).padStart(len, char);
+            
+            let receiptText = '';
+
+            receiptText += "         PAY BOSS CAFE\n";
+            receiptText += " Jl. Tanjung Permai No 2 RT 07\n";
+            receiptText += "    Pembataan.Murung Pudak.\n";
+            receiptText += "            Tabalong\n";
+            receiptText += "    Reservasi: 0811-5194-456\n";
+            receiptText += "--------------------------------\n";
+            
+            receiptText += `Meja: ${order.table}\n`;
+            receiptText += `Pelanggan: ${order.customer}\n`;
+            
+            const orderTime = order.completedAt?.seconds ? order.completedAt.seconds : (order.createdAt?.seconds || Date.now() / 1000);
+            const time = new Date(orderTime * 1000);
+            receiptText += `Waktu: ${time.toLocaleDateString('id-ID')} ${time.toLocaleTimeString('id-ID')}\n`;
+            receiptText += "--------------------------------\n";
+
+            const safeItems = Array.isArray(order.items) ? order.items : [];
+            
+            safeItems.forEach(item => {
+                let itemName = `${item.qty}x ${item.name}${item.variant ? ` (${item.variant})` : ''}`;
+                
+                if (itemName.length > receiptWidth) {
+                    receiptText += pad(itemName.substring(0, receiptWidth), receiptWidth) + "\n";
+                    receiptText += pad("  " + itemName.substring(receiptWidth), receiptWidth) + "\n";
+                } else {
+                    receiptText += pad(itemName, receiptWidth) + "\n";
+                }
+                
+                const itemTotal = item.price * item.qty;
+                receiptText += padLeft(`Rp ${itemTotal.toLocaleString('id-ID')}`, receiptWidth) + "\n";
+            });
+            receiptText += "--------------------------------\n";
+
+            receiptText += pad("GRAND TOTAL", 18) + padLeft(`Rp ${(order.total||0).toLocaleString('id-ID')}`, 14) + "\n";
+            receiptText += "--------------------------------\n";
+
+            receiptText += "      Wifi : Pay Boss Cafe\n";
+            receiptText += "     Pasword : P4yB0sSC4F3\n";
+            receiptText += "--------------------------------\n";
+            receiptText += "Terimakasih atas kunjungan anda.\n";
+            receiptText += "    Instagram: Payboss.cafe\n";
+            receiptText += "\n\n\n"; 
+
+            const encodedReceiptText = encodeURIComponent(receiptText);
+
+            const rawBtUrl = `rawbt:${encodedReceiptText}`;
+
+            const printWindow = window.open(rawBtUrl, '_blank');
+            
+            if (!printWindow) {
+                showNotification("Gagal membuka RawBT. Izinkan popup untuk aplikasi ini.", true);
+            }
+        }
+
+        function printKitchenOrder(order) {
+            const receiptWidth = 32; 
+            const pad = (str, len, char = ' ') => String(str).padEnd(len, char);
+            const center = (str) => {
+                const spaces = Math.max(0, (receiptWidth - str.length) / 2);
+                return ' '.repeat(spaces) + str;
+            };
+
+            let receiptText = '';
+
+            receiptText += center("--- PESANAN DAPUR ---\n");
+            
+            if (order.queueNumber) {
+                receiptText += center(`NO ANTRIAN: #${order.queueNumber}`) + "\n";
+            }
+            receiptText += center(`NO MEJA: ${order.table.toUpperCase()}`) + "\n";
+            receiptText += center(`PELANGGAN: ${order.customer.toUpperCase()}`) + "\n";
+            
+            const time = order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000) : new Date();
+            receiptText += center(`${time.toLocaleDateString('id-ID')} ${time.toLocaleTimeString('id-ID')}`) + "\n";
+            receiptText += "--------------------------------\n\n";
+
+            const safeItems = Array.isArray(order.items) ? order.items : [];
+
+            safeItems.forEach(item => {
+                let itemName = `${item.qty}x ${item.name}${item.variant ? ` (${item.variant})` : ''}`;
+                
+                if (itemName.length > receiptWidth) {
+                    receiptText += pad(itemName.substring(0, receiptWidth), receiptWidth) + "\n";
+                    receiptText += pad("  " + itemName.substring(receiptWidth), receiptWidth) + "\n";
+                } else {
+                    receiptText += pad(itemName, receiptWidth) + "\n";
+                }
+            });
+            
+            receiptText += "\n--------------------------------\n";
+            receiptText += "\n\n\n"; 
+
+            const encodedReceiptText = encodeURIComponent(receiptText);
+            const rawBtUrl = `rawbt:${encodedReceiptText}`;
+            const printWindow = window.open(rawBtUrl, '_blank');
+            
+            if (!printWindow) {
+                showNotification("Gagal membuka RawBT. Izinkan popup untuk aplikasi ini.", true);
+            }
+        }
+
+        function setupMenuActionListeners() {
+            if (document.body.dataset.menuActionListenerAttached) return;
+            document.body.dataset.menuActionListenerAttached = 'true';
+
+            document.body.addEventListener('click', async function(e) {
+                const toggleBtn = e.target.closest('.toggle-btn[data-action="toggle-availability"]');
+                if (!toggleBtn) return;
+
+                const itemId = toggleBtn.dataset.id;
+                const itemName = toggleBtn.dataset.name;
+                const currentStatus = toggleBtn.dataset.currentStatus === 'true';
+                const newStatus = !currentStatus; 
+
+                const itemRef = doc(db, 'menu', itemId);
+                
+                toggleBtn.disabled = true;
+                toggleBtn.textContent = 'Menyimpan...';
+
+                try {
+                    await updateDoc(itemRef, { isAvailable: newStatus });
+                    
+                    showNotification(`Status ${itemName} diubah ke ${newStatus ? 'Tersedia' : 'Habis'}.`);
+                } catch (error) {
+                    console.error("Gagal update status menu:", error);
+                    showNotification("Gagal mengubah status.", true);
+                    toggleBtn.disabled = false;
+                    toggleBtn.textContent = currentStatus ? 'Tersedia' : 'Habis';
+                }
+            });
+        }
+        
+        function setupNavigation() {
+             if (document.body.dataset.navListenerAttached) return;
+             document.body.dataset.navListenerAttached = 'true';
+             const navLinks = document.querySelectorAll('.nav-link');
+             const pages = document.querySelectorAll('.page');
+             navLinks.forEach(link => {
+                 link.addEventListener('click', function(e) {
+                     e.preventDefault();
+                     const target = this.dataset.page;
+                     navLinks.forEach(l => l.classList.remove('active'));
+                     this.classList.add('active');
+                     pages.forEach(p => p.classList.remove('active'));
+                     document.getElementById(`${target}-page`).classList.add('active');
+                     
+                     if (window.onPageChange) {
+                     } else {
+                         try {
+                            const activePage = document.querySelector('.page.active');
+                            const toolbar = document.getElementById('kitchen-alert-toolbar');
+                            if (activePage.id === 'kitchen-page') {
+                                toolbar.classList.remove('hidden');
+                            } else {
+                                toolbar.classList.add('hidden');
+                            }
+                         } catch(e) {}
+                     }
+                 });
+             });
+        }
+
+        function showNotification(message, isError = false) {
+            const el = document.createElement('div');
+            el.className = 'notification'; el.textContent = message;
+            if (isError) el.style.backgroundColor = '#A52A2A';
+            document.body.appendChild(el);
+            setTimeout(() => el.classList.add('show'), 10);
+            setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 500); }, 3000);
+        }
+        
+        function setupReportDownloader() {
+            const downloadBtn = document.getElementById('download-report-btn');
+            if (!downloadBtn || downloadBtn.dataset.listenerAttached) return;
+            downloadBtn.dataset.listenerAttached = 'true';
+
+            downloadBtn.addEventListener('click', async () => {
+                const startDateEl = document.getElementById('start-date');
+                const endDateEl = document.getElementById('end-date');
+
+                if (!startDateEl.value || !endDateEl.value) {
+                    showNotification("Silakan pilih rentang tanggal terlebih dahulu.", true);
+                    return;
+                }
+                
+                downloadBtn.textContent = "Memproses...";
+                downloadBtn.disabled = true;
+
+                try {
+                    const start = new Date(startDateEl.value);
+                    start.setHours(0, 0, 0, 0);
+                    const end = new Date(endDateEl.value);
+                    end.setHours(23, 59, 59, 999);
+
+                    const q = query(
+                        collection(db, "completedOrders"),
+                        where("completedAt", ">=", Timestamp.fromDate(start)),
+                        where("completedAt", "<=", Timestamp.fromDate(end))
+                    );
+
+                    const querySnapshot = await getDocs(q);
+                    const reportData = querySnapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+
+                    if (reportData.length === 0) {
+                        showNotification("Tidak ada data penjualan pada periode ini.", true);
+                        return;
+                    }
+                    
+                    const headers = ["ID Pesanan", "Tanggal Selesai", "Waktu Selesai", "Nama Pelanggan", "No. Meja", "Item Dipesan", "Total", "Metode Bayar"];
+                    const csvRows = [headers.join(',')];
+                    
+                    reportData.sort((a, b) => a.completedAt.seconds - b.completedAt.seconds);
+
+                    for (const order of reportData) {
+                        const date = new Date(order.completedAt.seconds * 1000);
+                        const orderId = order.id.substring(0, 6); 
+                        const formattedDate = date.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                        const formattedTime = date.toLocaleTimeString('id-ID');
+                        const customer = `"${order.customer}"`;
+                        const table = order.table;
+                        
+                        const safeItems = Array.isArray(order.items) ? order.items : [];
+                        
+                        const items = `"${safeItems.map(i => 
+                            `${i.name}${i.variant ? ` (${i.variant})` : ''} x${i.qty}`
+                        ).join('; ')}"`;
+                        const grandTotal = order.total;
+                        const payment = `"${order.paymentMethod}"`;
+                        csvRows.push([orderId, formattedDate, formattedTime, customer, table, items, grandTotal, payment].join(','));
+                    }
+
+                    const csvContent = csvRows.join('\n');
+                    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement("a");
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute("href", url);
+                    const fileName = `Laporan_Payboss_${startDateEl.value}_sampai_${endDateEl.value}.csv`;
+                    link.setAttribute("download", fileName);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    showNotification("Laporan berhasil di-download.");
+
+                } catch (error) {
+                    console.error("Error downloading report:", error);
+                    showNotification("Gagal men-download laporan.", true);
+                } finally {
+                    downloadBtn.textContent = "Download Laporan (Excel)";
+                    downloadBtn.disabled = false;
+                }
+            });
+        }
+
+    </script>
+</body>
+</html>
