@@ -1024,6 +1024,8 @@
                 } else if (order.status === 'ready') {
                     buttons = `<button class="action-btn success" data-id="${order.id}" data-action="complete">Selesaikan</button>`;
                 } else if (order.status === 'preparing') {
+                    // ADD THIS: Allow cashier to mark as ready (for non-kitchen items like Coffee/Cigarettes)
+                    buttons += `<button class="action-btn success" data-id="${order.id}" data-action="finish">Pesanan Siap</button>`;
                     buttons += ` <button class="action-btn danger" data-id="${order.id}" data-action="void-request">Batalkan</button>`;
                 }
                 buttons += ` <button class="action-btn print" data-id="${order.id}" data-action="print">Cetak</button>`;
