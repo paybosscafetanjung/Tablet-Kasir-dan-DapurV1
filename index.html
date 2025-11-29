@@ -160,6 +160,13 @@
         .action-btn.print:hover {
             background-color: #0056b3;
         }
+        .action-btn.warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .action-btn.warning:hover {
+            background-color: #e0a800;
+        }
         .action-btn.danger {
             background-color: #dc3545;
         }
@@ -224,9 +231,14 @@
             padding-bottom: 5px;
         }
 
+        /* VOID STYLES */
         .order-item.voided {
             border-left-color: #dc3545;
             background-color: #fff6f6;
+        }
+        .order-item.voided-partial {
+            border-left-color: #ffc107; /* Kuning untuk partial */
+            background-color: #fffbf0;
         }
         .void-reason {
             font-size: 0.9rem;
@@ -239,6 +251,14 @@
         .void-reason small {
             color: #666;
             font-weight: normal;
+        }
+        .status-partial-void {
+            background: #ffeeba;
+            color: #856404;
+        }
+        .status-full-void {
+            background: #f8d7da;
+            color: #721c24;
         }
 
         .modal-overlay {
@@ -260,6 +280,9 @@
             box-shadow: 0 5px 25px rgba(0,0,0,0.3);
             width: 90%;
             max-width: 450px;
+        }
+        .modal-content.large {
+            max-width: 600px;
         }
         .modal-content h2 {
             margin-top: 0;
@@ -289,6 +312,21 @@
             justify-content: flex-end;
             gap: 15px;
             margin-top: 25px;
+        }
+
+        /* Edit List Styles */
+        .edit-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .edit-item-details {
+            flex: 1;
+        }
+        .edit-item-action {
+            margin-left: 10px;
         }
 
         @media (max-width: 768px) {
@@ -401,29 +439,50 @@
                 <div class="order-list"><h3>📊 Menu Terlaris Hari Ini</h3><div id="best-selling-list"><p>Belum ada data penjualan hari ini.</p></div></div>
             
                 <div class="order-list">
-                    <h3>🚫 Daftar Pesanan Dibatalkan Hari Ini</h3>
+                    <h3>🚫 Aktivitas Pembatalan (Void & Revisi)</h3>
                     <div id="voided-orders-list">
-                        <p>Belum ada pesanan yang dibatalkan hari ini.</p>
+                        <p>Belum ada aktivitas pembatalan hari ini.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- VOID FULL ORDER MODAL -->
     <div id="void-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h2>Batalkan Pesanan</h2>
-            <p>Anda akan membatalkan pesanan. Harap masukkan alasan yang jelas untuk manajer.</p>
+            <h2>Batalkan SELURUH Pesanan</h2>
+            <p>Anda akan membatalkan SEMUA item di pesanan ini.</p>
             <form id="void-form">
                 <div class="form-group">
                     <label for="void-reason">Alasan Pembatalan</label>
-                    <textarea id="void-reason" rows="3" required></textarea>
+                    <textarea id="void-reason" rows="3" required placeholder="Contoh: Pelanggan pergi, Salah input total"></textarea>
                 </div>
                 <div class="modal-actions">
                     <button type="button" id="cancel-void-btn" class="action-btn">Tutup</button>
-                    <button type="submit" id="confirm-void-btn" class="action-btn danger">Konfirmasi Batal</button>
+                    <button type="submit" id="confirm-void-btn" class="action-btn danger">Konfirmasi Batal Semua</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- EDIT / PARTIAL VOID MODAL (NEW) -->
+    <div id="edit-order-modal" class="modal-overlay hidden">
+        <div class="modal-content large">
+            <h2>📝 Revisi / Edit Pesanan</h2>
+            <p>Hapus item yang batal atau salah. <strong>Aksi ini akan dicatat untuk Manager.</strong></p>
+            <div id="edit-order-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                <!-- Item list injected here -->
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-void-reason">Alasan Perubahan (Wajib)</label>
+                <input type="text" id="edit-void-reason" placeholder="Contoh: Menu lambat, Stok habis, Pelanggan ubah pikiran" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ccc;">
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" id="close-edit-btn" class="action-btn">Tutup</button>
+            </div>
         </div>
     </div>
     
@@ -718,7 +777,6 @@
         const SHARED_STAFF_PASS = "payboss-staff-secure-access"; 
 
         let __activeOrdersShadow = []; 
-        // [FITUR BARU] Peta untuk menyimpan kategori setiap menu
         let globalItemCategories = {};
 
         const loginPage = document.getElementById('login-page');
@@ -727,12 +785,20 @@
         const loginError = document.getElementById('login-error');
         const logoutBtn = document.getElementById('logout-btn');
 
+        // VOID FULL ORDER ELEMENTS
         const voidModal = document.getElementById('void-modal');
         const voidForm = document.getElementById('void-form');
         const voidReasonInput = document.getElementById('void-reason');
         const cancelVoidBtn = document.getElementById('cancel-void-btn');
         const confirmVoidBtn = document.getElementById('confirm-void-btn');
         let orderToVoidId = null;
+
+        // EDIT / PARTIAL VOID ELEMENTS (NEW)
+        const editModal = document.getElementById('edit-order-modal');
+        const editList = document.getElementById('edit-order-list');
+        const closeEditBtn = document.getElementById('close-edit-btn');
+        const editReasonInput = document.getElementById('edit-void-reason');
+        let orderToEditId = null;
 
         let unsubscribeOrders = null;
         let unsubscribeCompleted = null;
@@ -904,22 +970,18 @@
                 });
             }
 
-            // [PERBAIKAN] Listener menu sekarang juga mengisi 'globalItemCategories'
             if (!unsubscribeMenu) {
                 unsubscribeMenu = onSnapshot(collection(db, 'menu'), (snapshot) => {
                     const menuItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     
-                    // Simpan pemetaan Nama Menu -> Kategori untuk filter Dapur
                     globalItemCategories = {};
                     menuItems.forEach(item => {
-                        // Simpan dengan key lowercase agar pencocokan nama lebih mudah
                         if (item.name) {
                             globalItemCategories[item.name.toLowerCase().trim()] = item.category ? item.category.toLowerCase() : 'lainnya';
                         }
                     });
 
                     renderMenuManagement(menuItems);
-                    // Render ulang order jika menu berubah (siapa tahu kategori berubah)
                     if(activeOrders.length > 0) renderStaffOrders(activeOrders);
                 });
             }
@@ -939,7 +1001,8 @@
             setupOrderActionListeners();
             setupMenuActionListeners(); 
             setupReportDownloader();
-            setupVoidModalListeners(); 
+            setupVoidModalListeners();
+            setupEditModalListeners(); 
         }
 
         function renderStaffOrders(orders) {
@@ -955,7 +1018,6 @@
             let hasKitchenItems = false;
             
             kitchenQueue.forEach(order => {
-                // Cek apakah order ini punya item dapur. Jika createOrderElement return null, jangan di-append
                 const orderEl = createOrderElement(order, 'kitchen');
                 if (orderEl) {
                     kitchenContainer.appendChild(orderEl);
@@ -968,7 +1030,6 @@
             }
         }
         
-        // [FUNGSI DENGAN FITUR FILTERING KATEGORI]
         function createOrderElement(order, type) {
             const div = document.createElement('div');
             div.className = 'order-item';
@@ -983,24 +1044,19 @@
             const safeItems = Array.isArray(order.items) ? order.items : [];
             let itemsToDisplay = safeItems;
 
-            // [LOGIKA FILTER DAPUR]
             if (type === 'kitchen') {
-                // Daftar kategori yang BOLEH masuk dapur
                 const kitchenCategories = ['food', 'sauce', 'additional', 'snack', 'snacks', 'makanan', 'makanan berat'];
                 
-                // Filter item berdasarkan kategori dari globalItemCategories
                 itemsToDisplay = safeItems.filter(item => {
                     const nameKey = (item.name || '').toLowerCase().trim();
                     const category = globalItemCategories[nameKey] || 'lainnya';
                     return kitchenCategories.includes(category);
                 });
 
-                // Jika setelah difilter kosong (artinya pesanan ini cuma minuman/rokok), jangan tampilkan kartu ini di dapur
                 if (itemsToDisplay.length === 0) {
                     return null;
                 }
             }
-            // Kasir menampilkan SEMUA item (tidak difilter) agar tagihan akurat
 
             const itemsDisplay = itemsToDisplay.map(i => 
                 `${i.name || 'Item Tanpa Nama'}${i.variant ? ` (${i.variant})` : ''} x${i.qty || 1}`
@@ -1008,7 +1064,6 @@
 
             const time = order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleTimeString('id-ID') : '...';
             
-            // Tampilan detail berbeda sedikit untuk Dapur (lebih simpel) vs Kasir (ada harga)
             let detailsHtml = '';
             if (type === 'cashier') {
                 detailsHtml = `<strong>Total:</strong> Rp ${(order.total || 0).toLocaleString('id-ID')} | <strong>Waktu:</strong> ${time}`;
@@ -1020,12 +1075,13 @@
             if (type === 'cashier') {
                 if (order.status === 'pending') {
                     buttons = `<button class="action-btn" data-id="${order.id}" data-action="confirm">Konfirmasi</button>`;
+                    buttons += ` <button class="action-btn warning" data-id="${order.id}" data-action="edit-order">📝 Edit</button>`;
                     buttons += ` <button class="action-btn danger" data-id="${order.id}" data-action="void-request">Batalkan</button>`;
                 } else if (order.status === 'ready') {
                     buttons = `<button class="action-btn success" data-id="${order.id}" data-action="complete">Selesaikan</button>`;
                 } else if (order.status === 'preparing') {
-                    // ADD THIS: Allow cashier to mark as ready (for non-kitchen items like Coffee/Cigarettes)
                     buttons += `<button class="action-btn success" data-id="${order.id}" data-action="finish">Pesanan Siap</button>`;
+                    buttons += ` <button class="action-btn warning" data-id="${order.id}" data-action="edit-order">📝 Edit</button>`;
                     buttons += ` <button class="action-btn danger" data-id="${order.id}" data-action="void-request">Batalkan</button>`;
                 }
                 buttons += ` <button class="action-btn print" data-id="${order.id}" data-action="print">Cetak</button>`;
@@ -1035,7 +1091,6 @@
                 } else if (order.status === 'preparing') {
                     buttons = `<button class="action-btn success" data-id="${order.id}" data-action="finish">Selesai Masak</button>`;
                 }
-                // Dapur juga bisa cetak struk (versi dapur)
                 buttons += ` <button class="action-btn print" data-id="${order.id}" data-action="print-kitchen">Cetak Dapur</button>`;
                 buttons += ` <button class="action-btn danger" data-id="${order.id}" data-action="void-request">Batalkan</button>`;
             }
@@ -1117,7 +1172,9 @@
             container.innerHTML = ''; 
             orders.forEach(order => {
                 const div = document.createElement('div');
-                div.className = 'order-item voided'; 
+                const isPartial = order.voidType === 'partial';
+
+                div.className = isPartial ? 'order-item voided-partial' : 'order-item voided'; 
                 
                 const safeItems = Array.isArray(order.items) ? order.items : [];
                 const items = safeItems.map(i => 
@@ -1125,21 +1182,30 @@
                 ).join(', ');
 
                 const voidTime = order.voidedAt?.seconds ? new Date(order.voidedAt.seconds * 1000).toLocaleTimeString('id-ID') : '...';
-                const orderTime = order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleTimeString('id-ID') : '...';
+                
+                // Format tanggal berbeda tergantung apakah data punya createdAt atau tidak
+                let orderTime = '...';
+                if(order.createdAt?.seconds) {
+                    orderTime = new Date(order.createdAt.seconds * 1000).toLocaleTimeString('id-ID');
+                }
+
+                const statusLabel = isPartial ? 'ITEM DIHAPUS' : 'ORDER BATAL';
+                const statusClass = isPartial ? 'status-partial-void' : 'status-full-void';
+                const valueLabel = isPartial ? 'Nilai Dihapus' : 'Total Asli';
 
                 div.innerHTML = `
                     <div class="order-header">
                         <span class="order-id">Meja ${order.table} - ${order.customer}</span>
-                        <span class="order-status status-pending">DIBATALKAN</span>
+                        <span class="order-status ${statusClass}">${statusLabel}</span>
                     </div>
                     <div class="order-details">
-                        <strong>Pesanan Asli:</strong> ${items}<br>
-                        <strong>Total Asli:</strong> Rp ${(order.total||0).toLocaleString('id-ID')}<br>
-                        <strong>Waktu Pesan:</strong> ${orderTime} | <strong>Waktu Batal:</strong> ${voidTime}
+                        <strong>Item:</strong> ${items}<br>
+                        <strong>${valueLabel}:</strong> Rp ${(order.total||0).toLocaleString('id-ID')}<br>
+                        <strong>Waktu Batal/Hapus:</strong> ${voidTime}
                     </div>
                     <div class="void-reason">
-                        <strong>Alasan Batal:</strong> ${order.voidReason || 'Tidak ada alasan'}<br>
-                        <small>Dibatalkan oleh: ${order.voidedBy || 'Tidak diketahui'}</small>
+                        <strong>Alasan:</strong> ${order.voidReason || 'Tidak ada alasan'}<br>
+                        <small>Oleh: ${order.voidedBy || 'Tidak diketahui'}</small>
                     </div>
                 `;
                 container.appendChild(div);
@@ -1235,6 +1301,12 @@
                         confirmVoidBtn.disabled = true; 
                         voidModal.classList.remove('hidden');
                         voidReasonInput.focus();
+                    
+                    // --- NEW: EDIT ORDER LOGIC ---
+                    } else if (action === 'edit-order') {
+                        orderToEditId = orderId;
+                        editReasonInput.value = '';
+                        await openEditModal(orderId);
 
                     } else if (action === 'print') {
                         const orderToPrintDoc = await getDoc(orderRef);
@@ -1266,6 +1338,119 @@
             });
         }
 
+        async function openEditModal(orderId) {
+            editList.innerHTML = '<p>Memuat item...</p>';
+            editModal.classList.remove('hidden');
+            
+            try {
+                const docRef = doc(db, 'orders', orderId);
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    renderEditList(data.items, orderId);
+                } else {
+                    editList.innerHTML = '<p style="color:red">Data pesanan tidak ditemukan.</p>';
+                }
+            } catch (e) {
+                editList.innerHTML = '<p style="color:red">Gagal memuat data.</p>';
+            }
+        }
+
+        function renderEditList(items, orderId) {
+            if (!items || items.length === 0) {
+                editList.innerHTML = '<p>Tidak ada item tersisa. Sebaiknya batalkan pesanan.</p>';
+                return;
+            }
+
+            editList.innerHTML = '';
+            items.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'edit-item-row';
+                const totalItemPrice = item.price * item.qty;
+                
+                div.innerHTML = `
+                    <div class="edit-item-details">
+                        <strong>${item.name}</strong><br>
+                        ${item.variant ? `<small>${item.variant}</small> ` : ''}
+                        <span>x${item.qty} (@ Rp ${item.price})</span> = 
+                        <strong>Rp ${totalItemPrice.toLocaleString('id-ID')}</strong>
+                    </div>
+                    <div class="edit-item-action">
+                        <button class="action-btn danger small" onclick="window.removeOrderItem('${orderId}', ${index})">Hapus</button>
+                    </div>
+                `;
+                editList.appendChild(div);
+            });
+        }
+
+        window.removeOrderItem = async function(orderId, itemIndex) {
+            const reasonInput = document.getElementById('edit-void-reason');
+            const reason = reasonInput.value.trim();
+            
+            if (!reason) {
+                showNotification("Wajib isi alasan perubahan!", true);
+                reasonInput.focus();
+                return;
+            }
+
+            try {
+                const orderRef = doc(db, 'orders', orderId);
+                const docSnap = await getDoc(orderRef);
+                
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    const currentItems = data.items || [];
+                    
+                    const removedItem = currentItems[itemIndex];
+                    const newItems = currentItems.filter((_, i) => i !== itemIndex);
+                    const newTotal = newItems.reduce((sum, i) => sum + (i.price * i.qty), 0);
+
+                    if (newItems.length === 0) {
+                        showNotification("Semua item dihapus. Gunakan tombol 'Batalkan' di menu utama.", true);
+                        return;
+                    }
+
+                    // 1. Update Order di Kasir (Hapus Item)
+                    await updateDoc(orderRef, {
+                        items: newItems,
+                        total: newTotal,
+                        updatedAt: serverTimestamp()
+                    });
+
+                    // 2. Buat Log Partial Void untuk Manager
+                    const partialVoidLog = {
+                        originalOrderId: orderId,
+                        table: data.table,
+                        customer: data.customer,
+                        items: [removedItem], // Simpan item yang dihapus saja
+                        total: removedItem.price * removedItem.qty, // Nilai yang hilang
+                        voidedAt: serverTimestamp(),
+                        voidedBy: auth.currentUser ? auth.currentUser.email : 'staff',
+                        voidReason: reason,
+                        voidType: 'partial' // Penanda ini bukan full cancel
+                    };
+
+                    await addDoc(collection(db, 'voidedOrders'), partialVoidLog);
+                    
+                    console.log(`Item removed: ${removedItem.name} Reason: ${reason}`);
+
+                    showNotification("Item dihapus & dicatat untuk Manager");
+                    
+                    renderEditList(newItems, orderId);
+                }
+            } catch (e) {
+                console.error(e);
+                showNotification("Gagal menghapus item", true);
+            }
+        };
+
+        function setupEditModalListeners() {
+            closeEditBtn.addEventListener('click', () => {
+                editModal.classList.add('hidden');
+                orderToEditId = null;
+            });
+        }
 
         function setupVoidModalListeners() {
             voidReasonInput.addEventListener('input', () => {
@@ -1293,12 +1478,14 @@
                     if (orderDoc.exists()) {
                         const orderData = orderDoc.data();
                         
+                        // Full Void Log
                         await addDoc(collection(db, 'voidedOrders'), {
                             ...orderData,
                             voidedAt: serverTimestamp(),
                             voidedBy: cashierEmail,
                             voidReason: reason,
-                            originalOrderId: orderToVoidId
+                            originalOrderId: orderToVoidId,
+                            voidType: 'full' // Penanda full cancel
                         });
 
                         await deleteDoc(orderRef);
