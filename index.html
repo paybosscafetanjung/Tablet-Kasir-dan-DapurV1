@@ -755,7 +755,7 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, query, where, getDocs, getDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, query, where, getDocs, getDoc, Timestamp, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
         const firebaseConfig = {
@@ -770,6 +770,19 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        
+        // --- OPTIMIZATION 1: ENABLE OFFLINE PERSISTENCE (CACHE) ---
+        // Ini menyimpan data menu & order di memori HP/Laptop.
+        // Jadi kalau direfresh 10x, tidak download data 10x dari server.
+        enableIndexedDbPersistence(db).catch((err) => {
+            if (err.code == 'failed-precondition') {
+                console.log('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+            } else if (err.code == 'unimplemented') {
+                console.log('The current browser does not support all of the features required to enable persistence');
+            }
+        });
+        // -----------------------------------------------------------
+
         const auth = getAuth(app);
         
         const STAFF_PIN_CODE = "2525"; 
@@ -793,7 +806,7 @@
         const confirmVoidBtn = document.getElementById('confirm-void-btn');
         let orderToVoidId = null;
 
-        // EDIT / PARTIAL VOID ELEMENTS (NEW)
+        // EDIT / PARTIAL VOID ELEMENTS
         const editModal = document.getElementById('edit-order-modal');
         const editList = document.getElementById('edit-order-list');
         const closeEditBtn = document.getElementById('close-edit-btn');
@@ -828,24 +841,19 @@
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 const managerEmails = ['fedrik.christian07@gmail.com', 'paybosscafetanjung@gmail.com'];
-                let userRole = null;
+                let userRole = 'staff'; // Default role
 
                 if (managerEmails.includes(user.email)) {
                     userRole = 'manager';
                 } else if (user.email === SHARED_STAFF_EMAIL) {
                     userRole = 'staff';
-                } else {
-                    userRole = 'staff'; 
                 }
 
-                if (userRole) {
-                    loginPage.classList.add('hidden');
-                    appContainer.classList.remove('hidden');
-                    setupUIForRole(userRole);
-                    initializeAppLogic();
-                } else {
-                    signOut(auth).then(() => sessionStorage.setItem('loginError', 'Akun Anda tidak memiliki hak akses.'));
-                }
+                loginPage.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                setupUIForRole(userRole);
+                initializeAppLogic(userRole); // Pass role for optimization
+
             } else {
                 loginPage.classList.remove('hidden');
                 appContainer.classList.add('hidden');
@@ -855,6 +863,7 @@
                     loginError.classList.remove('hidden');
                     sessionStorage.removeItem('loginError');
                 }
+                // Cleanup listeners
                 if (unsubscribeOrders) { unsubscribeOrders(); unsubscribeOrders = null; }
                 if (unsubscribeCompleted) { unsubscribeCompleted(); unsubscribeCompleted = null; }
                 if (unsubscribeMenu) { unsubscribeMenu(); unsubscribeMenu = null; } 
@@ -940,12 +949,21 @@
             }
         }
 
-        function initializeAppLogic() {
+        function initializeAppLogic(userRole) {
             let activeOrders = [];
             let completedToday = [];
 
+            // --- OPTIMIZATION 2: FILTERED ACTIVE ORDERS ---
+            // Hanya ambil data yang statusnya aktif. Order lama yg sudah selesai TIDAK dibaca.
+            // Ini menghemat kuota Read secara signifikan.
             if (!unsubscribeOrders) {
-                unsubscribeOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
+                // Query: Status IN [pending, preparing, ready]
+                const qActiveOrders = query(
+                    collection(db, 'orders'), 
+                    where('status', 'in', ['pending', 'preparing', 'ready'])
+                );
+
+                unsubscribeOrders = onSnapshot(qActiveOrders, (snapshot) => {
                     activeOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
                     __activeOrdersShadow = activeOrders;
@@ -962,12 +980,27 @@
                 });
             }
 
-            if (!unsubscribeCompleted) {
-                const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-                unsubscribeCompleted = onSnapshot(query(collection(db, "completedOrders"), where("completedAt", ">=", todayStart)), (snapshot) => {
-                    completedToday = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    updateAllDashboards(activeOrders, completedToday);
-                });
+            // --- OPTIMIZATION 3: LAZY LOADING MANAGER DATA ---
+            // Jika yang login cuma Staff biasa, JANGAN ambil data laporan penjualan/void.
+            if (userRole === 'manager') {
+                if (!unsubscribeCompleted) {
+                    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+                    unsubscribeCompleted = onSnapshot(query(collection(db, "completedOrders"), where("completedAt", ">=", todayStart)), (snapshot) => {
+                        completedToday = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        updateAllDashboards(activeOrders, completedToday);
+                    });
+                }
+
+                if (!unsubscribeVoided) {
+                    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+                    const q = query(collection(db, "voidedOrders"), where("voidedAt", ">=", todayStart));
+                    
+                    unsubscribeVoided = onSnapshot(q, (snapshot) => {
+                        const voidedToday = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        voidedToday.sort((a, b) => (b.voidedAt?.seconds || 0) - (a.voidedAt?.seconds || 0));
+                        renderVoidedOrders(voidedToday);
+                    });
+                }
             }
 
             if (!unsubscribeMenu) {
@@ -982,18 +1015,8 @@
                     });
 
                     renderMenuManagement(menuItems);
+                    // Rerender active orders to update categories if needed
                     if(activeOrders.length > 0) renderStaffOrders(activeOrders);
-                });
-            }
-
-            if (!unsubscribeVoided) {
-                const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-                const q = query(collection(db, "voidedOrders"), where("voidedAt", ">=", todayStart));
-                
-                unsubscribeVoided = onSnapshot(q, (snapshot) => {
-                    const voidedToday = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    voidedToday.sort((a, b) => (b.voidedAt?.seconds || 0) - (a.voidedAt?.seconds || 0));
-                    renderVoidedOrders(voidedToday);
                 });
             }
 
@@ -1011,6 +1034,10 @@
             if(!cashierContainer || !kitchenContainer) return;
             const kitchenQueue = orders.filter(o => o.status === 'pending' || o.status === 'preparing');
             
+            // Sort active orders by time (newest last usually, or logic as needed)
+            orders.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+            kitchenQueue.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+
             cashierContainer.innerHTML = orders.length > 0 ? '' : '<p>Belum ada pesanan aktif.</p>';
             orders.forEach(order => cashierContainer.appendChild(createOrderElement(order, 'cashier')));
             
@@ -1183,7 +1210,6 @@
 
                 const voidTime = order.voidedAt?.seconds ? new Date(order.voidedAt.seconds * 1000).toLocaleTimeString('id-ID') : '...';
                 
-                // Format tanggal berbeda tergantung apakah data punya createdAt atau tidak
                 let orderTime = '...';
                 if(order.createdAt?.seconds) {
                     orderTime = new Date(order.createdAt.seconds * 1000).toLocaleTimeString('id-ID');
@@ -1302,7 +1328,6 @@
                         voidModal.classList.remove('hidden');
                         voidReasonInput.focus();
                     
-                    // --- NEW: EDIT ORDER LOGIC ---
                     } else if (action === 'edit-order') {
                         orderToEditId = orderId;
                         editReasonInput.value = '';
@@ -1314,6 +1339,7 @@
                             const orderData = { id: orderToPrintDoc.id, ...orderToPrintDoc.data() };
                             printReceipt(orderData);
                         } else {
+                            // Check completed orders if not found in active
                             const completedOrderRef = doc(db, 'completedOrders', orderId);
                             const completedOrderDoc = await getDoc(completedOrderRef);
                             if (completedOrderDoc.exists()) {
