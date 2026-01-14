@@ -137,7 +137,7 @@
         .stat-value { font-size: 2.5rem; font-weight: bold; color: #3E2723; margin-bottom: 8px; }
         .stat-label { color: #666; font-size: 1.1rem; margin-bottom: 10px; }
         .order-list { background: white; border-radius: 15px; padding: 25px; margin: 0 25px 25px 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .order-item { background: #f8f9fa; border-radius: 10px; padding: 20px; margin-bottom: 15px; border-left: 4px solid #8B4513; }
+        .order-item { background: #f8f9fa; border-radius: 10px; padding: 20px; margin-bottom: 15px; border-left: 4px solid #8B4513; position: relative; transition: all 0.3s ease; }
         .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
         .order-id { font-weight: bold; font-size: 1.1rem; color: #3E2723; }
         .order-status { padding: 6px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; }
@@ -172,6 +172,28 @@
         }
         .action-btn.danger:hover {
             background-color: #c82333;
+        }
+
+        /* LATE ORDER WARNING ANIMATION */
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+        .order-item.late-warning {
+            border: 2px solid #dc3545 !important;
+            background-color: #ffe6e6 !important;
+            animation: pulse-red 2s infinite;
+        }
+        .late-badge {
+            background: #dc3545;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 5px;
         }
 
         .notification {
@@ -344,6 +366,9 @@
 </head>
 <body>
 
+    <!-- AUDIO ELEMENT FOR ALARM -->
+    <audio id="kitchen-alarm" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
     <div id="login-page">
         <div class="login-container">
             <h1>☕ Portal Staf</h1>
@@ -401,7 +426,11 @@
                 <div class="order-list"><h3>📋 Daftar Pesanan</h3><div id="cashier-orders"></div></div>
             </div>
             <div id="kitchen-page" class="page">
-                <div class="page-header"><h1>👨‍🍳 Dashboard Dapur</h1><p>Kelola pesanan yang perlu dimasak</p></div>
+                <div class="page-header">
+                    <h1>👨‍🍳 Dashboard Dapur</h1>
+                    <p>Kelola pesanan yang perlu dimasak</p>
+                    <button class="action-btn warning" id="test-sound-btn" style="margin-top:10px;">🔔 Tes & Aktifkan Alarm</button>
+                </div>
                 <div class="dashboard-grid">
                     <div class="stat-card"><span class="stat-icon">🔥</span><div class="stat-value" id="cooking-orders">0</div><div class="stat-label">Sedang Dimasak</div></div>
                     <div class="stat-card"><span class="stat-icon">✅</span><div class="stat-value" id="ready-orders">0</div><div class="stat-label">Siap Disajikan</div></div>
@@ -520,6 +549,8 @@
 
         let __activeOrdersShadow = []; 
         let globalItemCategories = {};
+        let previousOrdersCount = 0; // NEW: Untuk melacak pertambahan order
+        let isFirstLoad = true; // NEW: Mencegah alarm bunyi saat pertama buka
 
         const loginPage = document.getElementById('login-page');
         const appContainer = document.getElementById('app-container');
@@ -551,6 +582,57 @@
         const staffSection = document.getElementById('staff-login-section');
         const managerSection = document.getElementById('manager-login-section');
         let currentLoginMode = 'staff';
+
+        // NEW: Audio Setup
+        const kitchenAlarm = document.getElementById('kitchen-alarm');
+        const testSoundBtn = document.getElementById('test-sound-btn');
+        
+        testSoundBtn.addEventListener('click', () => {
+            kitchenAlarm.currentTime = 0;
+            kitchenAlarm.play().then(() => {
+                showNotification("Alarm berfungsi dengan baik.");
+            }).catch(e => {
+                showNotification("Gagal memutar audio. Pastikan izin browser.", true);
+            });
+        });
+
+        // NEW: Check Late Orders Interval (Setiap 30 detik)
+        setInterval(checkLateOrders, 30000);
+
+        function checkLateOrders() {
+            const kitchenPage = document.getElementById('kitchen-page');
+            if (!kitchenPage.classList.contains('active')) return;
+
+            const now = new Date();
+            const orderItems = document.querySelectorAll('#kitchen-orders .order-item');
+            
+            orderItems.forEach(item => {
+                const createdAtSecs = item.dataset.createdAt;
+                if (!createdAtSecs) return;
+
+                const orderTime = new Date(createdAtSecs * 1000);
+                const diffMs = now - orderTime;
+                const diffMins = Math.floor(diffMs / 60000);
+
+                if (diffMins >= 10) {
+                    if (!item.classList.contains('late-warning')) {
+                        item.classList.add('late-warning');
+                        // Tambahkan badge jika belum ada
+                        if (!item.querySelector('.late-badge')) {
+                            const details = item.querySelector('.order-details');
+                            const badge = document.createElement('div');
+                            badge.className = 'late-badge';
+                            badge.innerHTML = `⚠️ TERLAMBAT ${diffMins} MENIT`;
+                            details.appendChild(badge);
+                        }
+                    } else {
+                        // Update existing badge
+                        const badge = item.querySelector('.late-badge');
+                        if (badge) badge.innerHTML = `⚠️ TERLAMBAT ${diffMins} MENIT`;
+                    }
+                }
+            });
+        }
 
         modeBtns.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -596,6 +678,7 @@
                 if (unsubscribeCompleted) { unsubscribeCompleted(); unsubscribeCompleted = null; }
                 if (unsubscribeMenu) { unsubscribeMenu(); unsubscribeMenu = null; } 
                 if (unsubscribeVoided) { unsubscribeVoided(); unsubscribeVoided = null; }
+                isFirstLoad = true;
             }
         });
 
@@ -687,11 +770,30 @@
                 unsubscribeOrders = onSnapshot(qActiveOrders, (snapshot) => {
                     activeOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+                    // NEW: Logic Alarm Pesanan Masuk
+                    if (!isFirstLoad) {
+                        const newOrdersCount = activeOrders.filter(o => o.status === 'pending').length;
+                        const prevPendingCount = __activeOrdersShadow.filter(o => o.status === 'pending').length;
+
+                        if (newOrdersCount > prevPendingCount) {
+                            try {
+                                kitchenAlarm.currentTime = 0;
+                                kitchenAlarm.play().catch(e => console.log("Perlu interaksi user utk audio"));
+                                showNotification("🔔 PESANAN BARU MASUK!");
+                            } catch (e) {
+                                console.log("Audio play error", e);
+                            }
+                        }
+                    } else {
+                        isFirstLoad = false;
+                    }
+
                     __activeOrdersShadow = activeOrders;
                     window.__latestActiveOrdersForKitchen = activeOrders; 
                     
                     renderStaffOrders(activeOrders);
                     updateAllDashboards(activeOrders, completedToday);
+                    checkLateOrders(); // Cek langsung saat update data
                 });
             }
 
@@ -772,6 +874,10 @@
             const div = document.createElement('div');
             div.className = 'order-item';
             div.dataset.orderId = order.id; 
+            // NEW: Simpan timestamp pembuatan untuk cek durasi masak
+            if(order.createdAt?.seconds) {
+                div.dataset.createdAt = order.createdAt.seconds;
+            }
 
             const statusMap = {
                 pending: { text: 'Menunggu', class: 'status-pending' },
