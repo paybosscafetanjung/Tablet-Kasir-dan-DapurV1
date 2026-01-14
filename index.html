@@ -1072,7 +1072,7 @@
                         const orderToPrintDoc = await getDoc(orderRef);
                         if (orderToPrintDoc.exists()) {
                             const orderData = { id: orderToPrintDoc.id, ...orderToPrintDoc.data() };
-                            printKitchenOrderSplit(orderData); // MENGGUNAKAN FUNGSI BARU (SPLIT)
+                            printKitchenOrder(orderData); // MENGGUNAKAN FUNGSI BARU
                         } else {
                             showNotification("Data pesanan tidak ditemukan.", true);
                         }
@@ -1307,37 +1307,50 @@
             }
         }
 
-        // FUNGSI BARU: PRINT DAPUR TERPISAH (SPLIT PER ITEM)
-        function printKitchenOrderSplit(order) {
+        // FUNGSI BARU: PRINT DAPUR (GABUNGAN & FILTER MAKANAN/SNACK)
+        function printKitchenOrder(order) {
             const receiptWidth = 32; 
             const center = (str) => {
                 const spaces = Math.max(0, (receiptWidth - str.length) / 2);
                 return ' '.repeat(spaces) + str;
             };
 
-            let allTickets = "";
+            // 1. FILTER ITEM: HANYA MAKANAN & SNACK
+            // Pastikan globalItemCategories sudah terisi dari onSnapshot menu
+            const targetCategories = ['food', 'makanan', 'makanan berat', 'snack', 'snacks'];
+            
             const safeItems = Array.isArray(order.items) ? order.items : [];
+            const kitchenItems = safeItems.filter(item => {
+                const nameKey = (item.name || '').toLowerCase().trim();
+                // Default ke 'lainnya' jika tidak ada di map
+                const category = globalItemCategories[nameKey] || 'lainnya'; 
+                return targetCategories.includes(category);
+            });
+
+            if (kitchenItems.length === 0) {
+                showNotification("Tidak ada item Makanan/Snack untuk dicetak.", true);
+                return;
+            }
+
+            // 2. BUILD SATU TIKET (GABUNGAN)
             const time = order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000) : new Date();
             const timeStr = time.toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'});
 
-            // LOOP SETIAP ITEM UNTUK MEMBUAT TIKET INDIVIDU
-            safeItems.forEach((item, index) => {
-                let ticket = "";
-                
-                // HEADER (Diulang di setiap tiket)
-                ticket += center("=== TIKET DAPUR ===") + "\n";
-                ticket += center(`ITEM KE-${index + 1} DARI ${safeItems.length}`) + "\n\n"; // Info Item 1 dari 3, dst
-                
-                if (order.queueNumber) {
-                    ticket += `ANTRIAN : #${order.queueNumber}\n`;
-                }
-                ticket += `MEJA    : ${order.table}\n`;
-                ticket += `NAMA    : ${order.customer}\n`;
-                ticket += `JAM     : ${timeStr}\n`;
-                ticket += "-".repeat(receiptWidth) + "\n";
+            let ticket = "";
+            ticket += center("=== TIKET DAPUR ===") + "\n";
+            ticket += center("MAKANAN & SNACK") + "\n\n";
 
-                // ISI ITEM (Hanya 1 item per tiket)
-                let itemName = `${item.qty}x ${item.name}`; // Font besar
+            if (order.queueNumber) {
+                ticket += `ANTRIAN : #${order.queueNumber}\n`;
+            }
+            ticket += `MEJA    : ${order.table}\n`;
+            ticket += `NAMA    : ${order.customer}\n`;
+            ticket += `JAM     : ${timeStr}\n`;
+            ticket += "-".repeat(receiptWidth) + "\n";
+
+            // LOOP ITEM
+            kitchenItems.forEach(item => {
+                let itemName = `${item.qty}x ${item.name}`;
                 ticket += itemName + "\n";
                 
                 if (item.variant) {
@@ -1346,28 +1359,20 @@
                 if (item.note) {
                     ticket += `   Catatan: ${item.note}\n`;
                 }
-                
-                ticket += "-".repeat(receiptWidth) + "\n";
-                
-                // FOOTER (Jarak potong kertas)
-                ticket += "\n\n\n\n"; 
-
-                // GABUNGKAN KE STRING UTAMA
-                allTickets += ticket;
+                // Tambah pemisah antar item jika diperlukan
+                ticket += "\n"; 
             });
 
-            const encodedReceiptText = encodeURIComponent(allTickets);
+            ticket += "-".repeat(receiptWidth) + "\n";
+            ticket += "\n\n\n"; // Feed kertas
+
+            const encodedReceiptText = encodeURIComponent(ticket);
             const rawBtUrl = `rawbt:${encodedReceiptText}`;
             const printWindow = window.open(rawBtUrl, '_blank');
             
             if (!printWindow) {
                 showNotification("Gagal membuka RawBT. Izinkan popup.", true);
             }
-        }
-        
-        // FUNGSI LAMA (TIDAK DIPAKAI LAGI TAPI DISIMPAN JIKA PERLU BACKUP)
-        function printKitchenOrder(order) {
-            // ... fungsi lama ...
         }
 
         function setupMenuActionListeners() {
