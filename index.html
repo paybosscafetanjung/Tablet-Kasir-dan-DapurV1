@@ -366,8 +366,12 @@
 </head>
 <body>
 
-    <!-- AUDIO ELEMENT FOR ALARM -->
-    <audio id="kitchen-alarm" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+    <!-- 1. MERUBAH BAGIAN AUDIO -->
+    <!-- Pesanan Baru: Menggunakan URL Sirine yang sebelumnya digunakan untuk late order -->
+    <audio id="audio-new-order" src="https://assets.mixkit.co/active_storage/sfx/995/995-preview.mp3" preload="auto"></audio>
+    
+    <!-- Pesanan Telat: Menggunakan URL Lonceng yang sebelumnya digunakan untuk new order -->
+    <audio id="audio-late-order" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
     <div id="login-page">
         <div class="login-container">
@@ -429,7 +433,7 @@
                 <div class="page-header">
                     <h1>👨‍🍳 Dashboard Dapur</h1>
                     <p>Kelola pesanan yang perlu dimasak</p>
-                    <button class="action-btn warning" id="test-sound-btn" style="margin-top:10px;">🔔 Tes & Aktifkan Alarm</button>
+                    <button class="action-btn warning" id="test-sound-btn" style="margin-top:10px;">🔔 Tes Audio (Sirine & Lonceng)</button>
                 </div>
                 <div class="dashboard-grid">
                     <div class="stat-card"><span class="stat-icon">🔥</span><div class="stat-value" id="cooking-orders">0</div><div class="stat-label">Sedang Dimasak</div></div>
@@ -549,8 +553,8 @@
 
         let __activeOrdersShadow = []; 
         let globalItemCategories = {};
-        let previousOrdersCount = 0; // NEW: Untuk melacak pertambahan order
-        let isFirstLoad = true; // NEW: Mencegah alarm bunyi saat pertama buka
+        let previousOrdersCount = 0; 
+        let isFirstLoad = true; 
 
         const loginPage = document.getElementById('login-page');
         const appContainer = document.getElementById('app-container');
@@ -583,14 +587,21 @@
         const managerSection = document.getElementById('manager-login-section');
         let currentLoginMode = 'staff';
 
-        // NEW: Audio Setup
-        const kitchenAlarm = document.getElementById('kitchen-alarm');
+        // 2. AUDIO SETUP JS (UPDATE)
+        const audioNewOrder = document.getElementById('audio-new-order');
+        const audioLateOrder = document.getElementById('audio-late-order');
         const testSoundBtn = document.getElementById('test-sound-btn');
         
         testSoundBtn.addEventListener('click', () => {
-            kitchenAlarm.currentTime = 0;
-            kitchenAlarm.play().then(() => {
-                showNotification("Alarm berfungsi dengan baik.");
+            // Tes Suara Pesanan Baru (Sirine)
+            audioNewOrder.currentTime = 0;
+            audioNewOrder.play().then(() => {
+                showNotification("Memutar Sirine (Pesanan Baru)...");
+                // Setelah 2 detik, tes suara telat (Lonceng 3x)
+                setTimeout(() => {
+                    playLateSoundSequence();
+                    showNotification("Memutar Lonceng 3x (Pesanan Telat)...");
+                }, 2000);
             }).catch(e => {
                 showNotification("Gagal memutar audio. Pastikan izin browser.", true);
             });
@@ -601,10 +612,12 @@
 
         function checkLateOrders() {
             const kitchenPage = document.getElementById('kitchen-page');
+            // Cek hanya jika di halaman dapur
             if (!kitchenPage.classList.contains('active')) return;
 
             const now = new Date();
             const orderItems = document.querySelectorAll('#kitchen-orders .order-item');
+            let hasLateOrders = false;
             
             orderItems.forEach(item => {
                 const createdAtSecs = item.dataset.createdAt;
@@ -615,6 +628,8 @@
                 const diffMins = Math.floor(diffMs / 60000);
 
                 if (diffMins >= 10) {
+                    hasLateOrders = true; // Tandai ada order telat
+                    
                     if (!item.classList.contains('late-warning')) {
                         item.classList.add('late-warning');
                         // Tambahkan badge jika belum ada
@@ -632,6 +647,30 @@
                     }
                 }
             });
+
+            // 3. LOGIKA ALARM KHUSUS UNTUK ORDER TELAT (Lonceng 3 Kali)
+            if (hasLateOrders) {
+                playLateSoundSequence();
+            }
+        }
+
+        // FUNGSI BARU: Mainkan Lonceng 3 Kali
+        function playLateSoundSequence() {
+            // Mainkan 1
+            audioLateOrder.currentTime = 0;
+            audioLateOrder.play().catch(e => console.log("Perlu interaksi user"));
+
+            // Mainkan 2 (setelah 800ms)
+            setTimeout(() => {
+                audioLateOrder.currentTime = 0;
+                audioLateOrder.play().catch(() => {});
+            }, 800);
+
+            // Mainkan 3 (setelah 1600ms)
+            setTimeout(() => {
+                audioLateOrder.currentTime = 0;
+                audioLateOrder.play().catch(() => {});
+            }, 1600);
         }
 
         modeBtns.forEach(btn => {
@@ -770,16 +809,16 @@
                 unsubscribeOrders = onSnapshot(qActiveOrders, (snapshot) => {
                     activeOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                    // NEW: Logic Alarm Pesanan Masuk
+                    // NEW: Logic Alarm Pesanan Masuk (Sirine)
                     if (!isFirstLoad) {
                         const newOrdersCount = activeOrders.filter(o => o.status === 'pending').length;
                         const prevPendingCount = __activeOrdersShadow.filter(o => o.status === 'pending').length;
 
                         if (newOrdersCount > prevPendingCount) {
                             try {
-                                kitchenAlarm.currentTime = 0;
-                                kitchenAlarm.play().catch(e => console.log("Perlu interaksi user utk audio"));
-                                showNotification("🔔 PESANAN BARU MASUK!");
+                                audioNewOrder.currentTime = 0;
+                                audioNewOrder.play().catch(e => console.log("Perlu interaksi user utk audio"));
+                                showNotification("🔔 PESANAN BARU MASUK! (SIRINE)");
                             } catch (e) {
                                 console.log("Audio play error", e);
                             }
